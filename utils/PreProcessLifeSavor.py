@@ -78,10 +78,18 @@ def add_apbs(basename_pdb):
     """
     pqr_file = basename_pdb + '.pqr'
     apbsin_file = basename_pdb + '.in'
+    pqr_buggy_file = os.path.basename(pqr_file)
     log_file = basename_pdb + '.log'
     cmd_pdb2pqr = f'pdb2pqr30 --whitespace --ff=AMBER --apbs-input {apbsin_file} {basename_pdb}.pdb {pqr_file}'
     try:
         os.system(cmd_pdb2pqr)
+        # We need to replace a line in the apbs_in file because it's shitty : it only keeps the basename of the pqr
+        # so obviously it cannot be read...
+        with open(apbsin_file, 'r') as file:
+            filedata = file.read()
+        filedata = filedata.replace(f'mol pqr {pqr_buggy_file}', f'mol pqr {pqr_file}')
+        with open(apbsin_file, 'w') as file:
+            file.write(filedata)
     except:
         print('error for: ' + basename_pdb)
 
