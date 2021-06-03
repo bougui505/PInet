@@ -63,16 +63,33 @@ def get_preds(model, points_r, points_l, dump_r, dump_l):
     return pred_r, pred_l
 
 
+def process_all(dataset, device='cpu'):
+    classifier = get_classifier(device=device)
+    for system in os.listdir(dataset):
+        system_basename = system[:-4]
+        pts_r_file = os.path.join(dataset, system, system_basename + '-r.pts')
+        pts_l_file = os.path.join(dataset, system, system_basename + '-l.pts')
+        points_r = get_input(pts_file=pts_r_file, device=device)
+        points_l = get_input(pts_file=pts_l_file, device=device)
+
+        dump_r = os.path.join(dataset, system, system_basename + '_prob_r.seg')
+        dump_l = os.path.join(dataset, system, system_basename + '_prob_l.seg')
+
+        get_preds(model=classifier, points_r=points_r, points_l=points_l,
+                  dump_r=dump_r, dump_l=dump_l)
+
+
 if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    pts_r_file = '../data/2I25/2I25-r.pts'
-    pts_l_file = '../data/2I25/2I25-l.pts'
-    dump_r = '../data/2I25/2I25_prob_l.seg'
-    dump_l = '../data/2I25/2I25_prob_r.seg'
+    # pts_r_file = '../data/2I25/2I25-r.pts'
+    # pts_l_file = '../data/2I25/2I25-l.pts'
+    # dump_r = '../data/2I25/2I25_prob_l.seg'
+    # dump_l = '../data/2I25/2I25_prob_r.seg'
 
-    classifier = get_classifier(device=device)
-    points_l = get_input(pts_file=pts_l_file, device=device)
-    points_r = get_input(pts_file=pts_r_file, device=device)
+    # classifier = get_classifier(device=device)
+    # points_l = get_input(pts_file=pts_l_file, device=device)
+    # points_r = get_input(pts_file=pts_r_file, device=device)
+    # pred_r, pred_l = get_preds(model=classifier, points_r=points_r, points_l=points_l,
+    #                            dump_r=dump_r, dump_l=dump_l)
 
-    pred_r, pred_l = get_preds(model=classifier, points_r=points_r, points_l=points_l,
-                               dump_r=dump_r, dump_l=dump_l)
+    process_all(device=device)
