@@ -94,13 +94,13 @@ if __name__ == '__main__':
     #                            dump_r=dump_r, dump_l=dump_l)
 
     # For Epipred
-    dataset = '../../dl_atomic_density/data/epipred/'
+    dataset = '../../dl_atomic_density_hd/data/epipred/'
     pts_name_r = 'receptor.pts'
     pts_name_l = 'ligand.pts'
     process_all(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device)
 
     # For dbd5
-    dataset = '../../dl_atomic_density/data/dbd5/'
+    dataset = '../../dl_atomic_density_hd/data/dbd5/'
     pts_name_r_b = 'receptor_b.pdb'
     pts_name_r_u = 'receptor_u.pdb'
     pts_name_l = 'ligand.pdb'

@@ -234,13 +234,13 @@ if __name__ == '__main__':
     # process_pdbs(pdbfile_r=pdb_r, pdbfile_l=pdb_l)
 
     # For Epipred
-    dataset = '../../dl_atomic_density/data/epipred/'
+    dataset = '../../dl_atomic_density_hd/data/epipred/'
     pdbname_r = 'receptor.pdb'
     pdbname_l = 'ligand.pdb'
     process_all(dataset=dataset, pdbname_r=pdbname_r, pdbname_l=pdbname_l)
 
     # For dbd5
-    dataset = '../../dl_atomic_density/data/dbd5/'
+    dataset = '../../dl_atomic_density_hd/data/dbd5/'
     pdbname_r_b = 'receptor_b.pdb'
     pdbname_r_u = 'receptor_u.pdb'
     pdbname_l = 'ligand.pdb'
