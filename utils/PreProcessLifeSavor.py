@@ -9,172 +9,175 @@ from getResiLabel import *
 from sklearn import neighbors
 from sklearn.neighbors import NearestNeighbors
 
-# pdb to wrl
-
-pdbfile_l = sys.argv[1]
-pdbfile_r = sys.argv[2]
-
-train_flag = 0
-needapbs = 1
-
 if len(sys.argv) == 4 and sys.argv[3] == 'train':
     train_flag = 1
 
-cmd.load(pdbfile_l)
-cmd.set('surface_quality', '0')
-cmd.show_as('surface', 'all')
-cmd.set_view('1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,300,1')
-cmd.save(pdbfile_l[0:4] + '-l.wrl')
-cmd.delete('all')
 
-cmd.load(pdbfile_r)
-cmd.set('surface_quality', '0')
-cmd.show_as('surface', 'all')
-cmd.set_view('1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,300,1')
-cmd.save(pdbfile_r[0:4] + '-r.wrl')
-cmd.delete('all')
+def pdb_to_wrl(pdbfile, dump_name=None):
+    """
+    Uses pymol to go from a pdb file to a wrl file (points on the surface format)
+    """
+    cmd.reinitialize()
+    if dump_name is None:
+        dump_name = pdbfile[0:-4] + '.wrl'
+    cmd.load(pdbfile)
+    cmd.set('surface_quality', '0')
+    cmd.show_as('surface', 'all')
+    cmd.set_view('1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,300,1')
+    cmd.save(dump_name)
+    cmd.delete('all')
 
-# wrl to pts
 
-holder = []
-normholder = []
-cf = 0
-nf = 0
-with open(pdbfile_l[0:4] + '-l.wrl', "r") as vrml:
-    for lines in vrml:
-        if 'point [' in lines:
-            cf = 1
-        if cf == 1:
-            a = re.findall("[-0-9]{1,3}.[0-9]{6}", lines)
-            if len(a) == 3:
-                holder.append(tuple(map(float, a)))
-        if 'vector [' in lines:
-            nf = 1
-        if nf == 1:
-            a = re.findall("[-0-9]{1}.[0-9]{4}", lines)
-            if len(a) == 3:
-                normholder.append(tuple(map(float, a)))
+# wrl to pts, normholder does not seem to be used...
+def wrl_to_coords(wrlfile):
+    """
+    Parse a wrl file to produce coordinates.
+    """
+    holder = []
+    normholder = []
+    cf = 0
+    nf = 0
+    with open(wrlfile, "r") as vrml:
+        for lines in vrml:
+            if 'point [' in lines:
+                cf = 1
+            if cf == 1:
+                a = re.findall("[-0-9]{1,3}.[0-9]{6}", lines)
+                if len(a) == 3:
+                    holder.append(tuple(map(float, a)))
+            if 'vector [' in lines:
+                nf = 1
+            if nf == 1:
+                a = re.findall("[-0-9]{1}.[0-9]{4}", lines)
+                if len(a) == 3:
+                    normholder.append(tuple(map(float, a)))
+    coords = np.array(holder)
+    coords = np.unique(coords, axis=0)
+    return coords
 
-lcoord = np.array(holder)
-# print lcoord
 
-holder = []
-normholder = []
-cf = 0
-nf = 0
-with open(pdbfile_r[0:4] + '-r.wrl', "r") as vrml:
-    for lines in vrml:
-        if 'point [' in lines:
-            cf = 1
-        if cf == 1:
-            a = re.findall("[-0-9]{1,3}.[0-9]{6}", lines)
-            if len(a) == 3:
-                holder.append(tuple(map(float, a)))
-        if 'vector [' in lines:
-            nf = 1
-        if nf == 1:
-            a = re.findall("[-0-9]{1}.[0-9]{4}", lines)
-            if len(a) == 3:
-                normholder.append(tuple(map(float, a)))
-
-rcoord = np.array(holder)
-
-lcoord = np.unique(lcoord, axis=0)
-rcoord = np.unique(rcoord, axis=0)
-
-print(lcoord)
-
-if train_flag:
+def add_binary_contact(coord_r, coord_l, dump_r, dump_l):
+    """
+    Based on the pairwise distances, with a thresholding of 2A (tol), annotate two coordset with
+    a binary annotation that denotes whether the coords are in contact.
+    """
     tol = np.array([2, 2, 2])
 
-    contact = (np.abs(np.asarray(lcoord[:, None]) - np.asarray(rcoord)) < tol).all(2).astype(np.int)
+    contact = (np.abs(np.asarray(coord_l[:, None]) - np.asarray(coord_r)) < tol).all(2).astype(np.int)
 
-    llabel = np.max(contact, axis=1)
-    rlabel = np.max(contact, axis=0)
+    label_l = np.max(contact, axis=1)
+    label_r = np.max(contact, axis=0)
 
-    np.savetxt(pdbfile_l[0:4] + '-l.seg', llabel)
-    np.savetxt(pdbfile_r[0:4] + '-r.seg', rlabel)
+    np.savetxt(fname=dump_r, X=label_r)
+    np.savetxt(fname=dump_l, X=label_l)
 
-# pdb 2 pqr
-# pdb2pqr='/path/to/pdb2pqr-linux-bin64-2.1.0/pdb2pqr'
-# apbsflag='--whitespace --ff=amber -v --apbs-input'
-# apbs='/path/to/apbs-pdb2pqr/bin/apbs'
 
-if needapbs:
-    # pdb2pqr='/dartfs-hpc/rc/home/w/f00355w/Bdai/pdb2pqr-linux-bin64-2.1.0/pdb2pqr'
-    # apbsflag = '--whitespace --ff=AMBER -v --apbs-input'
-    # apbs='/dartfs-hpc/rc/home/w/f00355w/Bdai/apbs-pdb2pqr/bin/apbs'
-    # apbs = 'apbs'
-    # cmd_pdb2pqr = pdb2pqr + ' ' + apbsflag + ' ' + pdbfile_l[0:4] + '-l.pdb' + ' ' + pdbfile_l[0:4] + '-l.pqr'
-    # print(cmd_pdb2pqr)
-    # sys.exit()
-    basename_l = pdbfile_l[0:4] + '-l'
-    basename_r = pdbfile_r[0:4] + '-r'
-
-    cmd_pdb2pqr_l = f'pdb2pqr30 --whitespace --ff=AMBER --apbs-input {basename_l}.in {basename_l}.pdb {basename_l}.pqr'
-    cmd_pdb2pqr_r = f'pdb2pqr30 --whitespace --ff=AMBER --apbs-input {basename_r}.in {basename_r}.pdb {basename_r}.pqr'
-
+def add_apbs(basename_pdb):
+    """
+    This dumps a bunch of files that are used to annotate the pts files produced above.
+    """
+    pqr_file = basename_pdb + '.pqr'
+    apbsin_file = basename_pdb + '.in'
+    log_file = basename_pdb + '.log'
+    cmd_pdb2pqr = f'pdb2pqr30 --whitespace --ff=AMBER --apbs-input {apbsin_file} {basename_pdb}.pdb {pqr_file}'
     try:
-        os.system(cmd_pdb2pqr_l)
-        # os.system(pdb2pqr + ' ' + apbsflag + ' ' + pdbfile_l[0:4] + '-l.pdb' + ' ' + pdbfile_l[0:4] + '-l.pqr')
+        os.system(cmd_pdb2pqr)
+        os.remove(pqr_file)
     except:
-        print('error when pdb2pqr l: ' + basename_l)
+        print('error for: ' + basename_pdb)
 
+    cmd_apbs = f'apbs {apbsin_file}'
     try:
-        os.system(cmd_pdb2pqr_r)
-        # os.system(pdb2pqr + ' ' + apbsflag + ' ' + pdbfile_r[0:4] + '-r.pdb' + ' ' + pdbfile_r[0:4] + '-r.pqr')
+        os.system(cmd_apbs)
+        os.remove(apbsin_file)
+        os.remove(log_file)
     except:
-        print('error when pdb2pqr r: ' + pdbfile_r[0:4])
+        print('error for abps: ' + basename_pdb)
 
-    cmd_apbs_l = f'apbs {basename_l}.in'
-    cmd_apbs_r = f'apbs {basename_r}.in'
-    try:
-        os.system(cmd_apbs_l)
-        # os.system(apbs + ' ' + pdbfile_l[0:4] + '-l.in')
 
-    except:
-        print('error when abps l: ' + pdbfile_l[0:4])
+def expand_coords(coords, pdbfile, pqrdxfile, outfile):
+    """
+    Go from (n,3) to (n,5) matrix using the apbs output.
+    """
+    # I don't know what happens here, especially the hlabel * 10.
+    # I think they use the CA annotation to annotate all atoms.
+    centroid, labels = gethydro(pdbfile)
+    centroid = np.array(centroid)
+    hlabel = np.transpose(np.asarray(labels[0]))
+    clf = neighbors.KNeighborsClassifier(3)
+    clf.fit(centroid, hlabel * 10)
+    distl, indl = clf.kneighbors(coords)
+    pred = np.sum(hlabel[indl] * distl, 1) / np.sum(distl, 1)
 
-    try:
-        os.system(cmd_apbs_r)
-        # os.system(apbs + ' ' + pdbfile_r[0:4] + '-r.in')
-    except:
-        print('error when abps r: ' + pdbfile_r[0:4])
+    # Parse apbs output
+    apbsl = open(pqrdxfile, 'r')
+    gl, orl, dl, vl = parsefile(apbsl)
+    avl = findvalue(coords, gl, orl, dl, vl)
 
-# add apbs feature
+    np.savetxt(outfile,
+               np.concatenate((coords, np.expand_dims(avl, 1), np.expand_dims(pred, 1)), axis=1))
 
-# newdick, labeldick, ab, ag = getcontactbyabag('/path/to/complex/pdb/files', ab=pdbdic[key][0], ag=pdbdic[key][1])
-centroid_l, labelsl = gethydro(pdbfile_l)
-centroid_r, labelsr = gethydro(pdbfile_r)
 
-centroid_l = np.array(centroid_l)
-centroid_r = np.array(centroid_r)
+def process_pdbs(pdbfile_r, pdbfile_l):
+    basename_r = pdbfile_r[0:-4]
+    basename_l = pdbfile_l[0:-4]
+    wrl_r = basename_r + '.wrl'
+    wrl_l = basename_l + '.wrl'
+    pdb_to_wrl(pdbfile_r, dump_name=wrl_r)
+    pdb_to_wrl(pdbfile_l, dump_name=wrl_l)
+    coords_r = wrl_to_coords(wrlfile=wrl_r)
+    coords_l = wrl_to_coords(wrlfile=wrl_l)
+    os.remove(wrl_r)
+    os.remove(wrl_l)
 
-hlabell = np.transpose(np.asarray(labelsl[0]))
-hlabelr = np.transpose(np.asarray(labelsr[0]))
+    dump_r = basename_r + '.seg'
+    dump_l = basename_l + '.seg'
+    add_binary_contact(coord_r=coords_r, coord_l=coords_l,
+                       dump_r=dump_r, dump_l=dump_l)
 
-clfl = neighbors.KNeighborsClassifier(3)
-clfr = neighbors.KNeighborsClassifier(3)
+    # use apbs to get .dx files
+    add_apbs(basename_r)
+    add_apbs(basename_l)
 
-clfl.fit(centroid_l, hlabell * 10)
-clfr.fit(centroid_r, hlabelr * 10)
+    pqrdx_r = basename_r + '.pqr.dx'
+    pqrdx_l = basename_l + '.pqr.dx'
+    outfile_r = basename_r + '.pts'
+    outfile_l = basename_l + '.pts'
+    expand_coords(pdbfile=pdbfile_r, coords=coords_r, pqrdxfile=pqrdx_r, outfile=outfile_r)
+    expand_coords(pdbfile=pdbfile_l, coords=coords_l, pqrdxfile=pqrdx_l, outfile=outfile_l)
+    os.remove(pqrdx_r)
+    os.remove(pqrdx_l)
 
-distl, indl = clfl.kneighbors(lcoord)
-distr, indr = clfr.kneighbors(rcoord)
 
-apbsl = open(pdbfile_l[0:4] + '-l.pqr.dx', 'r')
-apbsr = open(pdbfile_r[0:4] + '-r.pqr.dx', 'r')
+def process_all(dataset):
+    for system in os.listdir(dataset):
+        pdb_path_r = os.path.join(dataset, system, 'receptor.pdb')
+        pdb_path_l = os.path.join(dataset, system, 'ligand.pdb')
+        process_pdbs(pdbfile_r=pdb_path_r, pdbfile_l=pdb_path_l)
 
-gl, orl, dl, vl = parsefile(apbsl)
-gr, orr, dr, vr = parsefile(apbsr)
 
-avl = findvalue(lcoord, gl, orl, dl, vl)
-avr = findvalue(rcoord, gr, orr, dr, vr)
+if __name__ == '__main__':
+    # pdb to wrl
 
-lpred = np.sum(hlabell[indl] * distl, 1) / np.sum(distl, 1)
-rpred = np.sum(hlabelr[indr] * distr, 1) / np.sum(distr, 1)
+    # pdbfile_l = sys.argv[1]
+    # pdbfile_r = sys.argv[2]
+    # wrl_l = pdbfile_l[0:-4] + '.wrl'
+    # wrl_r = pdbfile_r[0:-4] + '.wrl'
+    #
+    # pdb_to_wrl(pdbfile_l, dump_name=wrl_l)
+    # pdb_to_wrl(pdbfile_r, dump_name=wrl_r)
+    # lcoords = wrl_to_coords(wrlfile=wrl_l)
+    # rcoords = wrl_to_coords(wrlfile=wrl_r)
+    #
+    # add_binary_contact(coord_l=lcoords, coord_r=rcoords, dump_l=pdbfile_l[0:4] + '-l.seg',
+    #                    dump_r=pdbfile_r[0:4] + '-r.seg')
+    #
+    # # use apbs to get .dx files
+    # basename_l = pdbfile_l[0:4] + '-l'
+    # basename_r = pdbfile_r[0:4] + '-r'
+    # add_apbs(basename_l)
+    # add_apbs(basename_r)
 
-np.savetxt(pdbfile_l[0:4] + '-l.pts',
-           np.concatenate((lcoord, np.expand_dims(avl, 1), np.expand_dims(lpred, 1)), axis=1))
-np.savetxt(pdbfile_r[0:4] + '-r.pts',
-           np.concatenate((rcoord, np.expand_dims(avr, 1), np.expand_dims(rpred, 1)), axis=1))
+    pdb_r = '../data/2I25/2I25-r.pdb'
+    pdb_l = '../data/2I25/2I25-l.pdb'
+    process_pdbs(pdbfile_r=pdb_r, pdbfile_l=pdb_l)
