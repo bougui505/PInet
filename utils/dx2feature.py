@@ -60,18 +60,18 @@ def findvalue(dotcloud,gridsize,origin,delta,value):
 #     print temp[ind3d[:,0].astype(int),ind3d[:,1].astype(int),ind3d[:,2].astype(int)]
     return value[ind1d.astype(int)]
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    file = open('/Users/bowendai/Documents/ProteinEng/1A2K_l.pqr.dx', 'r')
+    # file = open('/Users/bowendai/Documents/ProteinEng/1A2K_l.pqr.dx', 'r')
 
-    gridsize,origin,delta,value=parsefile(file)
-    print origin
-    print delta
-    # print gridsize
-    # print value
-    # dc=np.random.rand(5,3)*gridsize*delta+origin
-    dc=np.asarray([[37.371,5.541,81.174],[37.371,5.041,81.174],[37.371,4.7261,81.1740000],[37.602,4.7261,81.1740000],[38.102,4.7261,81.1740000],[36.8602,4.7261,81.1740000]])
-    print findvalue(dc,gridsize,origin,delta,value)
+    # gridsize,origin,delta,value=parsefile(file)
+    # print origin
+    # print delta
+    # # print gridsize
+    # # print value
+    # # dc=np.random.rand(5,3)*gridsize*delta+origin
+    # dc=np.asarray([[37.371,5.541,81.174],[37.371,5.041,81.174],[37.371,4.7261,81.1740000],[37.602,4.7261,81.1740000],[38.102,4.7261,81.1740000],[36.8602,4.7261,81.1740000]])
+    # print findvalue(dc,gridsize,origin,delta,value)
 
         # print line
         # print literal_eval(line)
