@@ -7,6 +7,7 @@ import numpy as np
 from dx2feature import *
 from getResiLabel import *
 from sklearn import neighbors
+from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
 
 if len(sys.argv) == 4 and sys.argv[3] == 'train':
@@ -125,12 +126,17 @@ def expand_coords(coords, pdbfile, pqrdxfile, outfile):
                np.concatenate((coords, np.expand_dims(avl, 1), np.expand_dims(pred, 1)), axis=1))
 
 
-def process_one_pdb(pdbfile_r):
+def process_one_pdb(pdbfile_r, recompute=False):
     """
     In case we have no ligand, we dont dump a supervision, just a pts file with hydrostatic and geometric features.
     :return : a 'failed' boolean
     """
     basename_r = pdbfile_r[0:-4]
+    outfile_r = basename_r + '.pts'
+
+    if not recompute and os.path.exists(outfile_r):
+        return False
+
     wrl_r = basename_r + '.wrl'
     pdb_to_wrl(pdbfile_r, dump_name=wrl_r)
     coords_r = wrl_to_coords(wrlfile=wrl_r)
@@ -140,11 +146,10 @@ def process_one_pdb(pdbfile_r):
     pqr_file, apbsin_file, log_file = add_apbs(basename_r)
 
     pqrdx_r_file = basename_r + '.pqr.dx'
-    outfile_r = basename_r + '.pts'
     if os.path.exists(pqrdx_r_file):
         expand_coords(pdbfile=pdbfile_r, coords=coords_r, pqrdxfile=pqrdx_r_file, outfile=outfile_r)
         os.remove(pqr_file)
-        os.remove(pqr_file)
+        os.remove(apbsin_file)
         os.remove(pqrdx_r_file)
         os.remove(log_file)
         return 0
@@ -152,12 +157,17 @@ def process_one_pdb(pdbfile_r):
         return 1
 
 
-def process_pdbs(pdbfile_r, pdbfile_l):
+def process_pdbs(pdbfile_r, pdbfile_l, recompute=False):
     """
     In case we have a ligand, we also dump a supervision
     """
     basename_r = pdbfile_r[0:-4]
     basename_l = pdbfile_l[0:-4]
+    outfile_r = basename_r + '.pts'
+    outfile_l = basename_l + '.pts'
+    if not recompute and os.path.exists(outfile_r) and os.path.exists(outfile_l):
+        return False
+
     wrl_r = basename_r + '.wrl'
     wrl_l = basename_l + '.wrl'
     pdb_to_wrl(pdbfile_r, dump_name=wrl_r)
@@ -176,11 +186,10 @@ def process_pdbs(pdbfile_r, pdbfile_l):
     pqr_file_r, apbsin_file_r, log_file_r = add_apbs(basename_r)
     failed = False
     pqrdx_file_r = basename_r + '.pqr.dx'
-    outfile_r = basename_r + '.pts'
     if os.path.exists(pqrdx_file_r):
         expand_coords(pdbfile=pdbfile_r, coords=coords_r, pqrdxfile=pqrdx_file_r, outfile=outfile_r)
         os.remove(pqr_file_r)
-        os.remove(pqr_file_r)
+        os.remove(apbsin_file_r)
         os.remove(pqrdx_file_r)
         os.remove(log_file_r)
     else:
@@ -188,11 +197,10 @@ def process_pdbs(pdbfile_r, pdbfile_l):
 
     pqr_file_l, apbsin_file_l, log_file_l = add_apbs(basename_l)
     pqrdx_file_l = basename_l + '.pqr.dx'
-    outfile_l = basename_l + '.pts'
     if os.path.exists(pqrdx_file_l):
         expand_coords(pdbfile=pdbfile_l, coords=coords_l, pqrdxfile=pqrdx_file_l, outfile=outfile_l)
         os.remove(pqr_file_l)
-        os.remove(pqr_file_l)
+        os.remove(apbsin_file_l)
         os.remove(pqrdx_file_l)
         os.remove(log_file_l)
     else:
@@ -200,18 +208,23 @@ def process_pdbs(pdbfile_r, pdbfile_l):
     return failed
 
 
-def process_all(dataset, pdbname_r='receptor.pdb', pdbname_l=None):
+def process_all(dataset, pdbname_r='receptor.pdb', pdbname_l=None, recompute=False):
     total_failed = 0
-    for system in os.listdir(dataset):
+    for system in tqdm(os.listdir(dataset)):
         pdb_path_r = os.path.join(dataset, system, pdbname_r)
-        if pdbname_l is not None:
-            pdb_path_l = os.path.join(dataset, system, pdbname_l)
-            failed = process_pdbs(pdbfile_r=pdb_path_r, pdbfile_l=pdb_path_l)
-        else:
-            failed = process_one_pdb(pdb_path_r)
-        if failed:
+        try:
+            if pdbname_l is not None:
+                pdb_path_l = os.path.join(dataset, system, pdbname_l)
+                failed = process_pdbs(pdbfile_r=pdb_path_r, pdbfile_l=pdb_path_l, recompute=recompute)
+            else:
+                failed = process_one_pdb(pdb_path_r, recompute=recompute)
+            if failed:
+                print('We failed for system : ', system)
+            total_failed += failed
+        except:
             print('We failed for system : ', system)
-        total_failed += failed
+            total_failed += 1
+
     print(f'We failed on {total_failed} on a total of {len(os.listdir(dataset))} systems.')
 
 
