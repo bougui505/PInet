@@ -63,17 +63,18 @@ def get_preds(model, points_r, points_l, dump_r, dump_l):
     return pred_r, pred_l
 
 
-def process_all(dataset, device='cpu'):
+def process_all(dataset, pts_name_r='receptor.pts', pts_name_l='ligand.pts', device='cpu'):
     classifier = get_classifier(device=device)
     for system in os.listdir(dataset):
-        system_basename = system[:-4]
-        pts_r_file = os.path.join(dataset, system, system_basename + '-r.pts')
-        pts_l_file = os.path.join(dataset, system, system_basename + '-l.pts')
+        basename_r = pts_name_r[:-4]
+        basename_l = pts_name_l[:-4]
+        pts_r_file = os.path.join(dataset, system, pts_name_r)
+        pts_l_file = os.path.join(dataset, system, pts_name_l)
         points_r = get_input(pts_file=pts_r_file, device=device)
         points_l = get_input(pts_file=pts_l_file, device=device)
 
-        dump_r = os.path.join(dataset, system, system_basename + '_prob_r.seg')
-        dump_l = os.path.join(dataset, system, system_basename + '_prob_l.seg')
+        dump_r = os.path.join(dataset, system, basename_r + '_prob.seg')
+        dump_l = os.path.join(dataset, system, basename_l + '_prob.seg')
 
         get_preds(model=classifier, points_r=points_r, points_l=points_l,
                   dump_r=dump_r, dump_l=dump_l)
@@ -92,4 +93,16 @@ if __name__ == '__main__':
     # pred_r, pred_l = get_preds(model=classifier, points_r=points_r, points_l=points_l,
     #                            dump_r=dump_r, dump_l=dump_l)
 
-    process_all(device=device)
+    # For Epipred
+    dataset = '../../dl_atomic_density/data/epipred/'
+    pts_name_r = 'receptor.pts'
+    pts_name_l = 'ligand.pts'
+    process_all(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device)
+
+    # For dbd5
+    dataset = '../../dl_atomic_density/data/dbd5/'
+    pts_name_r_b = 'receptor_b.pdb'
+    pts_name_r_u = 'receptor_u.pdb'
+    pts_name_l = 'ligand.pdb'
+    process_all(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l, device=device)
+    process_all(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l, device=device)

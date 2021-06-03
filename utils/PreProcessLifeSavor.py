@@ -118,7 +118,29 @@ def expand_coords(coords, pdbfile, pqrdxfile, outfile):
                np.concatenate((coords, np.expand_dims(avl, 1), np.expand_dims(pred, 1)), axis=1))
 
 
+def process_one_pdb(pdbfile_r):
+    """
+    In case we have no ligand, we dont dump a supervision, just a pts file with hydrostatic and geometric features.
+    """
+    basename_r = pdbfile_r[0:-4]
+    wrl_r = basename_r + '.wrl'
+    pdb_to_wrl(pdbfile_r, dump_name=wrl_r)
+    coords_r = wrl_to_coords(wrlfile=wrl_r)
+    os.remove(wrl_r)
+
+    # use apbs to get .dx files
+    add_apbs(basename_r)
+
+    pqrdx_r = basename_r + '.pqr.dx'
+    outfile_r = basename_r + '.pts'
+    expand_coords(pdbfile=pdbfile_r, coords=coords_r, pqrdxfile=pqrdx_r, outfile=outfile_r)
+    os.remove(pqrdx_r)
+
+
 def process_pdbs(pdbfile_r, pdbfile_l):
+    """
+    In case we have a ligand, we also dump a supervision
+    """
     basename_r = pdbfile_r[0:-4]
     basename_l = pdbfile_l[0:-4]
     wrl_r = basename_r + '.wrl'
@@ -149,12 +171,14 @@ def process_pdbs(pdbfile_r, pdbfile_l):
     os.remove(pqrdx_l)
 
 
-def process_all(dataset):
+def process_all(dataset, pdbname_r='receptor.pdb', pdbname_l=None):
     for system in os.listdir(dataset):
-        pdb_path_r = os.path.join(dataset, system, 'receptor.pdb')
-        pdb_path_l = os.path.join(dataset, system, 'ligand.pdb')
-        process_pdbs(pdbfile_r=pdb_path_r, pdbfile_l=pdb_path_l)
-
+        pdb_path_r = os.path.join(dataset, system, pdbname_r)
+        if pdbname_l is not None:
+            pdb_path_l = os.path.join(dataset, system, pdbname_l)
+            process_pdbs(pdbfile_r=pdb_path_r, pdbfile_l=pdb_path_l)
+        else:
+            process_one_pdb(pdb_path_r)
 
 if __name__ == '__main__':
     # pdb to wrl
@@ -178,6 +202,21 @@ if __name__ == '__main__':
     # add_apbs(basename_l)
     # add_apbs(basename_r)
 
-    pdb_r = '../data/2I25/2I25-r.pdb'
-    pdb_l = '../data/2I25/2I25-l.pdb'
-    process_pdbs(pdbfile_r=pdb_r, pdbfile_l=pdb_l)
+    # pdb_r = '../data/2I25/2I25-r.pdb'
+    # pdb_l = '../data/2I25/2I25-l.pdb'
+    # process_pdbs(pdbfile_r=pdb_r, pdbfile_l=pdb_l)
+
+
+    # For Epipred
+    dataset = '../../dl_atomic_density/data/epipred/'
+    pdbname_r = 'receptor.pdb'
+    pdbname_l = 'ligand.pdb'
+    process_all(dataset=dataset, pdbname_r=pdbname_r, pdbname_l=pdbname_l)
+
+    # For dbd5
+    dataset = '../../dl_atomic_density/data/dbd5/'
+    pdbname_r_b = 'receptor_b.pdb'
+    pdbname_r_u = 'receptor_u.pdb'
+    pdbname_l = 'ligand.pdb'
+    process_all(dataset=dataset, pdbname_r=pdbname_r_b, pdbname_l=pdbname_l)
+    process_all(dataset=dataset, pdbname_r=pdbname_r_u)
