@@ -82,17 +82,16 @@ def add_apbs(basename_pdb):
     cmd_pdb2pqr = f'pdb2pqr30 --whitespace --ff=AMBER --apbs-input {apbsin_file} {basename_pdb}.pdb {pqr_file}'
     try:
         os.system(cmd_pdb2pqr)
-        os.remove(pqr_file)
     except:
         print('error for: ' + basename_pdb)
 
     cmd_apbs = f'apbs {apbsin_file}'
     try:
         os.system(cmd_apbs)
-        os.remove(apbsin_file)
-        os.remove(log_file)
     except:
         print('error for abps: ' + basename_pdb)
+
+    return pqr_file, apbsin_file, log_file
 
 
 def expand_coords(coords, pdbfile, pqrdxfile, outfile):
@@ -121,6 +120,7 @@ def expand_coords(coords, pdbfile, pqrdxfile, outfile):
 def process_one_pdb(pdbfile_r):
     """
     In case we have no ligand, we dont dump a supervision, just a pts file with hydrostatic and geometric features.
+    :return : a 'failed' boolean
     """
     basename_r = pdbfile_r[0:-4]
     wrl_r = basename_r + '.wrl'
@@ -129,12 +129,19 @@ def process_one_pdb(pdbfile_r):
     os.remove(wrl_r)
 
     # use apbs to get .dx files
-    add_apbs(basename_r)
+    pqr_file, apbsin_file, log_file = add_apbs(basename_r)
 
-    pqrdx_r = basename_r + '.pqr.dx'
+    pqrdx_r_file = basename_r + '.pqr.dx'
     outfile_r = basename_r + '.pts'
-    expand_coords(pdbfile=pdbfile_r, coords=coords_r, pqrdxfile=pqrdx_r, outfile=outfile_r)
-    os.remove(pqrdx_r)
+    if os.path.exists(pqrdx_r_file):
+        expand_coords(pdbfile=pdbfile_r, coords=coords_r, pqrdxfile=pqrdx_r_file, outfile=outfile_r)
+        os.remove(pqr_file)
+        os.remove(pqr_file)
+        os.remove(pqrdx_r_file)
+        os.remove(log_file)
+        return 0
+    else:
+        return 1
 
 
 def process_pdbs(pdbfile_r, pdbfile_l):
@@ -157,28 +164,48 @@ def process_pdbs(pdbfile_r, pdbfile_l):
     add_binary_contact(coord_r=coords_r, coord_l=coords_l,
                        dump_r=dump_r, dump_l=dump_l)
 
-    # use apbs to get .dx files
-    add_apbs(basename_r)
-    add_apbs(basename_l)
-
-    pqrdx_r = basename_r + '.pqr.dx'
-    pqrdx_l = basename_l + '.pqr.dx'
+    # use apbs to get .dx files and then turn it into .pts files
+    pqr_file_r, apbsin_file_r, log_file_r = add_apbs(basename_r)
+    failed = False
+    pqrdx_file_r = basename_r + '.pqr.dx'
     outfile_r = basename_r + '.pts'
+    if os.path.exists(pqrdx_file_r):
+        expand_coords(pdbfile=pdbfile_r, coords=coords_r, pqrdxfile=pqrdx_file_r, outfile=outfile_r)
+        os.remove(pqr_file_r)
+        os.remove(pqr_file_r)
+        os.remove(pqrdx_file_r)
+        os.remove(log_file_r)
+    else:
+        failed = True
+
+    pqr_file_l, apbsin_file_l, log_file_l = add_apbs(basename_l)
+    pqrdx_file_l = basename_l + '.pqr.dx'
     outfile_l = basename_l + '.pts'
-    expand_coords(pdbfile=pdbfile_r, coords=coords_r, pqrdxfile=pqrdx_r, outfile=outfile_r)
-    expand_coords(pdbfile=pdbfile_l, coords=coords_l, pqrdxfile=pqrdx_l, outfile=outfile_l)
-    os.remove(pqrdx_r)
-    os.remove(pqrdx_l)
+    if os.path.exists(pqrdx_file_l):
+        expand_coords(pdbfile=pdbfile_l, coords=coords_l, pqrdxfile=pqrdx_file_l, outfile=outfile_l)
+        os.remove(pqr_file_l)
+        os.remove(pqr_file_l)
+        os.remove(pqrdx_file_l)
+        os.remove(log_file_l)
+    else:
+        failed = True
+    return failed
 
 
 def process_all(dataset, pdbname_r='receptor.pdb', pdbname_l=None):
+    total_failed = 0
     for system in os.listdir(dataset):
         pdb_path_r = os.path.join(dataset, system, pdbname_r)
         if pdbname_l is not None:
             pdb_path_l = os.path.join(dataset, system, pdbname_l)
-            process_pdbs(pdbfile_r=pdb_path_r, pdbfile_l=pdb_path_l)
+            failed = process_pdbs(pdbfile_r=pdb_path_r, pdbfile_l=pdb_path_l)
         else:
-            process_one_pdb(pdb_path_r)
+            failed = process_one_pdb(pdb_path_r)
+        if failed:
+            print('We failed for system : ', system)
+        total_failed += failed
+    print(f'We failed on {total_failed} on a total of {len(os.listdir(dataset))} systems.')
+
 
 if __name__ == '__main__':
     # pdb to wrl
@@ -205,7 +232,6 @@ if __name__ == '__main__':
     # pdb_r = '../data/2I25/2I25-r.pdb'
     # pdb_l = '../data/2I25/2I25-l.pdb'
     # process_pdbs(pdbfile_r=pdb_r, pdbfile_l=pdb_l)
-
 
     # For Epipred
     dataset = '../../dl_atomic_density/data/epipred/'
