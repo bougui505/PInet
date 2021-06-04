@@ -42,7 +42,7 @@ from getcontactEpipred import getsppider2
 from sklearn.neighbors import NearestNeighbors
 
 
-def get_resid_seg(pdbfile, ptsfile, segfile, RL='r'):
+def get_resid_seg(pdbfile, ptsfile, segfile):
     """
     ptsfile: .pts file
     segfile: .seg file
@@ -50,11 +50,7 @@ def get_resid_seg(pdbfile, ptsfile, segfile, RL='r'):
     """
     coord = np.transpose(np.loadtxt(ptsfile))[0:3,:]
 
-    prolabel = np.loadtxt(segfile)
-    if RL == 'r':
-        pro = prolabel[0:coord.shape[1]]
-    else:  # 'l'
-        pro = prolabel[-coord.shape[1]:]
+    pro = np.loadtxt(segfile)
 
     coord = np.transpose(coord)
     nn = 3
@@ -82,7 +78,7 @@ def get_resid_seg(pdbfile, ptsfile, segfile, RL='r'):
 if __name__ == '__main__':
     INDIR = '/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/1A2K'
     prob = get_resid_seg(f'{INDIR}/receptor_b.pdb', f'{INDIR}/receptor_b.pts',
-                         f'{INDIR}/receptor_b.seg', RL='r')
+                         f'{INDIR}/receptor_b.seg')
     print(prob.shape)
     print(prob)
 
