@@ -1,75 +1,114 @@
-from __future__ import print_function
 import argparse
 import os
+import sys
+
 import random
 import torch
 import torch.nn.parallel
 import torch.optim as optim
 import torch.utils.data
-from pinet.model import PointNetDenseCls12, feature_transform_regularizer
-import sys
 import torch.nn.functional as F
 from tqdm import tqdm
 import numpy as np
 
+script_dir = os.path.curdir
+sys.path.append(os.path.join(script_dir, '..'))
 
-random.seed(random.randint(1, 10000) )
-torch.manual_seed(random.randint(1, 10000) )
+from pinet.model import PointNetDenseCls12, feature_transform_regularizer
 
-filel=sys.argv[1]
-filer=sys.argv[2]
-
-
-num_classes = 2
-classifier = PointNetDenseCls12(k=num_classes, feature_transform=False,pdrop=0.0,id=5)
-
-classifier.cuda()
+random.seed(random.randint(1, 10000))
+torch.manual_seed(random.randint(1, 10000))
 
 
-PATH='../models/dbd_aug.pth'
-classifier.load_state_dict(torch.load(PATH))
-classifier.eval()
-
-pointsr=np.loadtxt(filer).astype(np.float32)
-pointsl=np.loadtxt(filel).astype(np.float32)
-
-coordsetr = pointsr[:, 0:3]
-featsetr = pointsr[:, 3:]
-
-coordsetl = pointsl[:, 0:3]
-featsetl = pointsl[:, 3:]
-
-featsetr = featsetr / np.sqrt(np.max(featsetr ** 2, axis=0))
-featsetl = featsetl / np.sqrt(np.max(featsetl ** 2, axis=0))
-        
-coordsetr = coordsetr - np.expand_dims(np.mean(coordsetr, axis=0), 0)  # center
-coordsetl = coordsetl - np.expand_dims(np.mean(coordsetl, axis=0), 0)  # center
-
-pointsr[:, 0:5] = np.concatenate((coordsetr, featsetr), axis=1)
-pointsl[:, 0:5] = np.concatenate((coordsetl, featsetl), axis=1)
-
-pointsr=torch.from_numpy(pointsr).unsqueeze(0)
-pointsl=torch.from_numpy(pointsl).unsqueeze(0)
+def get_classifier(weights_path='../models/dbd_aug.pth', device='cpu'):
+    num_classes = 2
+    classifier = PointNetDenseCls12(k=num_classes, feature_transform=False, pdrop=0.0, id=5)
+    classifier.load_state_dict(torch.load(weights_path, map_location=device))
+    classifier.eval()
+    return classifier
 
 
-memlim=120000
-if pointsl.size()[1] + pointsr.size()[1] > memlim:
-    lr = pointsl.size()[1] * memlim / (pointsl.size()[1] + pointsr.size()[1])
-    rr = pointsr.size()[1] * memlim / (pointsl.size()[1] + pointsr.size()[1])
-    ls = np.random.choice(pointsl.size()[1], lr, replace=False)
-    rs = np.random.choice(pointsr.size()[1], rr, replace=False)
+def get_input(pts_file, device='cpu'):
+    points = np.loadtxt(pts_file).astype(np.float32)
+    coordset = points[:, 0:3]
+    featset = points[:, 3:]
+    featset = featset / np.sqrt(np.max(featset ** 2, axis=0))
+    coordset = coordset - np.expand_dims(np.mean(coordset, axis=0), 0)  # center
+    points[:, 0:5] = np.concatenate((coordset, featset), axis=1)
+    points = torch.from_numpy(points).unsqueeze(0)
 
-    pointsr = pointsr[:, rs, :]
-    pointsl = pointsl[:, ls, :]
-    
-pointsr = pointsr.transpose(2, 1).cuda()
-pointsl = pointsl.transpose(2, 1).cuda()
+    memlim = 120000
+    if points.size()[1] + points.size()[1] > memlim:
+        subset_size = points.size()[1] * memlim / (points.size()[1] + points.size()[1])
+        subset = np.random.choice(points.size()[1], subset_size, replace=False)
+        points = points[:, subset, :]
+    points = points.transpose(2, 1)
+    points = points.to(device)
+    return points
 
-classifier = classifier.eval()
 
-pred, _, _ = classifier(pointsr,pointsl)
+def get_preds(model, points_r, points_l, dump_r, dump_l):
+    # Make inference and add activation
+    pred, _, _ = model(points_r, points_l)
+    pred = pred.view(-1, 1)
+    pred = torch.sigmoid(pred).view(1, -1).squeeze().data.cpu().numpy()
 
-pred = pred.view(-1, 1)
+    # split prediction
+    size_r = points_r.squeeze().shape[1]
+    pred_r, pred_l = pred[:size_r], pred[size_r:]
+    if dump_r is not None:
+        np.savetxt(fname=dump_r, X=pred_r)
+    if dump_l is not None:
+        np.savetxt(fname=dump_r, X=pred_l)
+    return pred_r, pred_l
 
-np.savetxt(filel[0:4]+'_prob_r_l.seg',torch.sigmoid(pred).view(1, -1).data.cpu())
-    
+
+def process_all(dataset, pts_name_r='receptor.pts', pts_name_l='ligand.pts',
+                device='cpu', overwrite=False, basename_dump='_prob.seg'):
+    classifier = get_classifier(device=device)
+    for system in tqdm(os.listdir(dataset)):
+        basename_r = pts_name_r[:-4]
+        basename_l = pts_name_l[:-4]
+        pts_r_file = os.path.join(dataset, system, pts_name_r)
+        pts_l_file = os.path.join(dataset, system, pts_name_l)
+        # Don't try to predict if we failed to dump a .pts file
+        if not (os.path.exists(pts_r_file) and os.path.exists(pts_l_file)):
+            continue
+        points_r = get_input(pts_file=pts_r_file, device=device)
+        points_l = get_input(pts_file=pts_l_file, device=device)
+
+        dump_r = os.path.join(dataset, system, basename_r + basename_dump)
+        dump_l = os.path.join(dataset, system, basename_l + basename_dump)
+        if not overwrite and os.path.exists(dump_l) and os.path.exists(dump_r):
+            continue
+
+        get_preds(model=classifier, points_r=points_r, points_l=points_l,
+                  dump_r=dump_r, dump_l=dump_l)
+
+
+if __name__ == '__main__':
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # pts_r_file = '../data/2I25/2I25-r.pts'
+    # pts_l_file = '../data/2I25/2I25-l.pts'
+    # dump_r = '../data/2I25/2I25_prob_l.seg'
+    # dump_l = '../data/2I25/2I25_prob_r.seg'
+
+    # classifier = get_classifier(device=device)
+    # points_l = get_input(pts_file=pts_l_file, device=device)
+    # points_r = get_input(pts_file=pts_r_file, device=device)
+    # pred_r, pred_l = get_preds(model=classifier, points_r=points_r, points_l=points_l,
+    #                            dump_r=dump_r, dump_l=dump_l)
+
+    # For Epipred
+    dataset = '../../dl_atomic_density_hd/data/epipred/'
+    pts_name_r = 'receptor.pts'
+    pts_name_l = 'ligand.pts'
+    process_all(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device)
+
+    # For dbd5
+    dataset = '../../dl_atomic_density_hd/data/dbd5/'
+    pts_name_r_b = 'receptor_b.pdb'
+    pts_name_r_u = 'receptor_u.pdb'
+    pts_name_l = 'ligand.pdb'
+    process_all(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l, device=device)
+    process_all(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l, device=device)
