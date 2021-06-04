@@ -43,7 +43,7 @@ def getcontactbyabag(folder,file,d=9,ab='',ag=''):
             residue_list = Selection.unfold_entities(p, 'R')  # R for residues
             chain_list = Selection.unfold_entities(p, 'C')  # C for chains
         except:
-            print p
+            print(p)
             continue
         if len(chain_list)!=2:
             continue
