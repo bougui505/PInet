@@ -63,18 +63,24 @@ def get_preds(model, points_r, points_l, dump_r, dump_l):
     return pred_r, pred_l
 
 
-def process_all(dataset, pts_name_r='receptor.pts', pts_name_l='ligand.pts', device='cpu'):
+def process_all(dataset, pts_name_r='receptor.pts', pts_name_l='ligand.pts',
+                device='cpu', overwrite=False, basename_dump='_prob.seg'):
     classifier = get_classifier(device=device)
-    for system in os.listdir(dataset):
+    for system in tqdm(os.listdir(dataset)):
         basename_r = pts_name_r[:-4]
         basename_l = pts_name_l[:-4]
         pts_r_file = os.path.join(dataset, system, pts_name_r)
         pts_l_file = os.path.join(dataset, system, pts_name_l)
+        # Don't try to predict if we failed to dump a .pts file
+        if not (os.path.exists(pts_r_file) and os.path.exists(pts_l_file)):
+            continue
         points_r = get_input(pts_file=pts_r_file, device=device)
         points_l = get_input(pts_file=pts_l_file, device=device)
 
-        dump_r = os.path.join(dataset, system, basename_r + '_prob.seg')
-        dump_l = os.path.join(dataset, system, basename_l + '_prob.seg')
+        dump_r = os.path.join(dataset, system, basename_r + basename_dump)
+        dump_l = os.path.join(dataset, system, basename_l + basename_dump)
+        if not overwrite and os.path.exists(dump_l) and os.path.exists(dump_r):
+            continue
 
         get_preds(model=classifier, points_r=points_r, points_l=points_l,
                   dump_r=dump_r, dump_l=dump_l)

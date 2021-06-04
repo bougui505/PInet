@@ -165,6 +165,7 @@ def process_pdbs(pdbfile_r, pdbfile_l, recompute=False):
     basename_l = pdbfile_l[0:-4]
     outfile_r = basename_r + '.pts'
     outfile_l = basename_l + '.pts'
+
     if not recompute and os.path.exists(outfile_r) and os.path.exists(outfile_l):
         return False
 
