@@ -37,9 +37,55 @@
 #############################################################################
 
 
+import glob
+import pickle
 import numpy as np
 from getcontactEpipred import getsppider2
 from sklearn.neighbors import NearestNeighbors
+import os
+from Bio.PDB import *
+
+
+def readpdb(file):
+    parser = PDBParser()
+    # structure = parser.get_structure('C', '3ogo-bg.pdb')
+    structure = parser.get_structure('C', file)
+    residic = []
+    # tempo=[]
+    newdic =[]
+    labeldic= []
+    bdic = []
+    cd=[]
+    mark=0
+    resid_keys = []
+    for c in structure[0]:
+        for resi in c:
+            _, _, chain, (_, resid, _) = resi.get_full_id()
+            resid_keys.append((chain, resid))
+            # residic.append(resi._id[1])
+            cen = [0, 0, 0]
+            count = 0
+            for atom in resi:
+                # print atom.get_coord()
+                # print list(atom.get_vector())
+                # if 'H' in atom.get_name():
+                #     continue
+                cen[0] += atom.get_coord()[0]
+                cen[1] += atom.get_coord()[1]
+                cen[2] += atom.get_coord()[2]
+                count += 1
+
+                # residic.append(resi._id[1])
+                residic.append(mark)
+                newdic.append([atom.get_coord()[0],atom.get_coord()[1],atom.get_coord()[2]])
+            cen = [coor * 1.0 / count for coor in cen]
+            mark+=1
+            cd.append(cen)
+            # labeldic.append(1)
+
+    # print len(residic)
+    # print len(bdic)
+    return residic, np.asarray(newdic),cd, resid_keys
 
 
 def get_resid_seg(pdbfile, ptsfile, segfile):
@@ -58,7 +104,7 @@ def get_resid_seg(pdbfile, ptsfile, segfile):
     cutoff = 0.5
     tol = [6, 6, 6]
 
-    r, n, c = getsppider2(pdbfile)
+    r, n, c, resid_keys = readpdb(pdbfile)
 
     cencoord = np.asarray(n)
 
@@ -72,13 +118,22 @@ def get_resid_seg(pdbfile, ptsfile, segfile):
                 continue
             prob[r[ii]] = max(prob[r[ii]], pro[sind])
     prob = np.asarray(prob)
-    return prob
+    probs = dict(zip(resid_keys, prob))
+    return probs
     
 
 if __name__ == '__main__':
-    INDIR = '/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/1A2K'
-    prob = get_resid_seg(f'{INDIR}/receptor_b.pdb', f'{INDIR}/receptor_b.pts',
-                         f'{INDIR}/receptor_b.seg')
-    print(prob.shape)
-    print(prob)
-
+    # INDIR = '/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/1A2K'
+    # indirs = os.listdir('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5')
+    indirs = glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????')
+    for indir in indirs:
+        for infile in ['receptor_b', 'ligand_b']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                probs = get_resid_seg(*inputs)
+                pickle.dump(probs, open(f'{indir}/{infile}_patch.p', 'wb'))
+        for infile in ['receptor_b', 'ligand_b', 'receptor_u', 'ligand_u']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}_prob.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                probs = get_resid_seg(*inputs)
+                pickle.dump(probs, open(f'{indir}/{infile}_prob_patch.p', 'wb'))
