@@ -204,7 +204,6 @@ class PointNetDenseCls12(nn.Module):
 
     def forward(self, x1, x2):
         batchsize = x1.size()[0]
-        n_pts = x1.size()[2]
         x1gf, x1pf, trans1, trans_feat1 = self.feat(x1)
         x2gf, x2pf, trans2, trans_feat2 = self.feat(x2)
 

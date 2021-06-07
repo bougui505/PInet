@@ -23,8 +23,9 @@ torch.manual_seed(random.randint(1, 10000))
 def get_classifier(weights_path='../models/dbd_aug.pth', device='cpu'):
     num_classes = 2
     classifier = PointNetDenseCls12(k=num_classes, feature_transform=False, pdrop=0.0, id=5)
-    classifier.load_state_dict(torch.load(weights_path, map_location=device))
+    classifier.load_state_dict(torch.load(weights_path, map_location='cpu'))
     classifier.eval()
+    classifier = classifier.to(device)
     return classifier
 
 
@@ -59,7 +60,7 @@ def get_preds(model, points_r, points_l, dump_r, dump_l):
     if dump_r is not None:
         np.savetxt(fname=dump_r, X=pred_r)
     if dump_l is not None:
-        np.savetxt(fname=dump_r, X=pred_l)
+        np.savetxt(fname=dump_l, X=pred_l)
     return pred_r, pred_l
 
 
@@ -71,44 +72,46 @@ def process_all(dataset, pts_name_r='receptor.pts', pts_name_l='ligand.pts',
         basename_l = pts_name_l[:-4]
         pts_r_file = os.path.join(dataset, system, pts_name_r)
         pts_l_file = os.path.join(dataset, system, pts_name_l)
+
         # Don't try to predict if we failed to dump a .pts file
         if not (os.path.exists(pts_r_file) and os.path.exists(pts_l_file)):
             continue
-        points_r = get_input(pts_file=pts_r_file, device=device)
-        points_l = get_input(pts_file=pts_l_file, device=device)
 
+        # Don't predict if prediction already exist
         dump_r = os.path.join(dataset, system, basename_r + basename_dump)
         dump_l = os.path.join(dataset, system, basename_l + basename_dump)
         if not overwrite and os.path.exists(dump_l) and os.path.exists(dump_r):
             continue
 
-        get_preds(model=classifier, points_r=points_r, points_l=points_l,
-                  dump_r=dump_r, dump_l=dump_l)
+        points_r = get_input(pts_file=pts_r_file, device=device)
+        points_l = get_input(pts_file=pts_l_file, device=device)
+        get_preds(model=classifier, points_r=points_r, points_l=points_l, dump_r=dump_r, dump_l=dump_l)
 
 
 if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # pts_r_file = '../data/2I25/2I25-r.pts'
-    # pts_l_file = '../data/2I25/2I25-l.pts'
-    # dump_r = '../data/2I25/2I25_prob_l.seg'
-    # dump_l = '../data/2I25/2I25_prob_r.seg'
+    pts_r_file = '../data/2I25/2I25-r.pts'
+    pts_l_file = '../data/2I25/2I25-l.pts'
+    dump_r = '../data/2I25/2I25_prob_l.seg'
+    dump_l = '../data/2I25/2I25_prob_r.seg'
 
-    # classifier = get_classifier(device=device)
-    # points_l = get_input(pts_file=pts_l_file, device=device)
-    # points_r = get_input(pts_file=pts_r_file, device=device)
-    # pred_r, pred_l = get_preds(model=classifier, points_r=points_r, points_l=points_l,
-    #                            dump_r=dump_r, dump_l=dump_l)
+    classifier = get_classifier(device=device)
+    points_r = get_input(pts_file=pts_r_file, device=device)
+    points_l = get_input(pts_file=pts_l_file, device=device)
+    points_l = None
+    pred_r, pred_l = get_preds(model=classifier, points_r=points_r, points_l=points_l,
+                               dump_r=dump_r, dump_l=dump_l)
 
-    # For Epipred
-    dataset = '../../dl_atomic_density_hd/data/epipred/'
-    pts_name_r = 'receptor.pts'
-    pts_name_l = 'ligand.pts'
-    process_all(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device)
-
-    # For dbd5
-    dataset = '../../dl_atomic_density_hd/data/dbd5/'
-    pts_name_r_b = 'receptor_b.pdb'
-    pts_name_r_u = 'receptor_u.pdb'
-    pts_name_l = 'ligand.pdb'
-    process_all(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l, device=device)
-    process_all(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l, device=device)
+    # # For Epipred
+    # dataset = '../../dl_atomic_density_hd/data/epipred/'
+    # pts_name_r = 'receptor.pts'
+    # pts_name_l = 'ligand.pts'
+    # process_all(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device)
+    #
+    # # For dbd5
+    # dataset = '../../dl_atomic_density_hd/data/dbd5/'
+    # pts_name_r_b = 'receptor_b.pdb'
+    # pts_name_r_u = 'receptor_u.pdb'
+    # pts_name_l = 'ligand.pdb'
+    # process_all(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l, device=device)
+    # process_all(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l, device=device)
