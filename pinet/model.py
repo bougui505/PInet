@@ -202,9 +202,51 @@ class PointNetDenseCls12(nn.Module):
         self.bn4 = nn.BatchNorm1d(64)
         self.dropout = nn.Dropout(p=pdrop)
 
+    def forward(self, x1):
+        x1gf, x1pf, trans1, trans_feat1 = self.feat(x1)
+
+        # global
+        xf1 = torch.cat([x1gf, x1gf], 1)
+
+        # point feat concat with global
+        xf1 = xf1.repeat(1, 1, x1pf.size()[2])
+        x = torch.cat([x1pf, xf1], 1)
+
+        # MLP
+        x = F.relu(self.bn0(self.dropout(self.conv0(x))))
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+
+        x = F.relu(self.bn4(self.conv4(x)))
+        x = self.conv5(x)
+        x = x.transpose(2, 1).contiguous()
+
+        x = x.view(-1, 1)
+        return x
+
+# general use one
+class PointNetDenseCls12Double(nn.Module):
+    def __init__(self, k=2, feature_transform=False, pdrop=0.0, id=5):
+        super(PointNetDenseCls12Double, self).__init__()
+        self.k = k
+        self.feature_transform = feature_transform
+        self.feat = PointNetfeat4(global_feat=True, feature_transform=feature_transform, d=id)
+        self.conv0 = torch.nn.Conv1d(2112, 1024, 1)
+        self.conv1 = torch.nn.Conv1d(1024, 512, 1)
+        self.conv2 = torch.nn.Conv1d(512, 256, 1)
+        self.conv3 = torch.nn.Conv1d(256, 128, 1)
+        self.conv4 = torch.nn.Conv1d(128, 64, 1)
+        self.conv5 = torch.nn.Conv1d(64, 1, 1)
+        self.bn0 = nn.BatchNorm1d(1024)
+        self.bn1 = nn.BatchNorm1d(512)
+        self.bn2 = nn.BatchNorm1d(256)
+        self.bn3 = nn.BatchNorm1d(128)
+        self.bn4 = nn.BatchNorm1d(64)
+        self.dropout = nn.Dropout(p=pdrop)
+
     def forward(self, x1, x2):
         batchsize = x1.size()[0]
-        n_pts = x1.size()[2]
         x1gf, x1pf, trans1, trans_feat1 = self.feat(x1)
         x2gf, x2pf, trans2, trans_feat2 = self.feat(x2)
 
@@ -212,12 +254,21 @@ class PointNetDenseCls12(nn.Module):
         xf1 = torch.cat([x1gf, x2gf], 1)
         xf2 = torch.cat([x2gf, x1gf], 1)
 
+        # x1pf is of shape (batch, local_size, n_points)
+        # x1gf is of shape (batch, global_size)
+        # xf1 is 'wrong' => global info also of the partner and is of shape (batch, 2*global_size)
+
         # point feat concat with global
         xf1 = xf1.repeat(1, 1, x1pf.size()[2])
         xf2 = xf2.repeat(1, 1, x2pf.size()[2])
         x1a = torch.cat([x1pf, xf1], 1)
         x2a = torch.cat([x2pf, xf2], 1)
         x = torch.cat((x1a, x2a), 2)
+
+        # xf1 is repeated to become shape (batch, 2*global_size, n_points)
+        # print(x1pf.shape)
+        # print(x1gf.shape)
+        # print(xf1.shape)
 
         # MLP
         x = F.relu(self.bn0(self.dropout(self.conv0(x))))

@@ -265,6 +265,8 @@ if __name__ == '__main__':
     dataset = '../../dl_atomic_density_hd/data/dbd5/'
     pdbname_r_b = 'receptor_b.pdb'
     pdbname_r_u = 'receptor_u.pdb'
-    pdbname_l = 'ligand.pdb'
-    process_all(dataset=dataset, pdbname_r=pdbname_r_b, pdbname_l=pdbname_l)
+    pdbname_l_b = 'ligand_b.pdb'
+    pdbname_l_u = 'ligand_u.pdb'
+    process_all(dataset=dataset, pdbname_r=pdbname_r_b, pdbname_l=pdbname_l_b)
     process_all(dataset=dataset, pdbname_r=pdbname_r_u)
+    process_all(dataset=dataset, pdbname_r=pdbname_l_u)

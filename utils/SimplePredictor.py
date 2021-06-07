@@ -14,17 +14,21 @@ import numpy as np
 script_dir = os.path.curdir
 sys.path.append(os.path.join(script_dir, '..'))
 
-from pinet.model import PointNetDenseCls12, feature_transform_regularizer
+from pinet.model import PointNetDenseCls12, feature_transform_regularizer, PointNetDenseCls12Double
 
 random.seed(random.randint(1, 10000))
 torch.manual_seed(random.randint(1, 10000))
 
 
-def get_classifier(weights_path='../models/dbd_aug.pth', device='cpu'):
+def get_classifier(weights_path='../models/dbd_aug.pth', device='cpu', double=False):
     num_classes = 2
-    classifier = PointNetDenseCls12(k=num_classes, feature_transform=False, pdrop=0.0, id=5)
-    classifier.load_state_dict(torch.load(weights_path, map_location=device))
+    if double:
+        classifier = PointNetDenseCls12Double(k=num_classes, feature_transform=False, pdrop=0.0, id=5)
+    else:
+        classifier = PointNetDenseCls12(k=num_classes, feature_transform=False, pdrop=0.0, id=5)
+    classifier.load_state_dict(torch.load(weights_path, map_location='cpu'))
     classifier.eval()
+    classifier = classifier.to(device)
     return classifier
 
 
@@ -40,6 +44,7 @@ def get_input(pts_file, device='cpu'):
     memlim = 120000
     if points.size()[1] + points.size()[1] > memlim:
         subset_size = points.size()[1] * memlim / (points.size()[1] + points.size()[1])
+        subset_size = int(subset_size)
         subset = np.random.choice(points.size()[1], subset_size, replace=False)
         points = points[:, subset, :]
     points = points.transpose(2, 1)
@@ -47,7 +52,7 @@ def get_input(pts_file, device='cpu'):
     return points
 
 
-def get_preds(model, points_r, points_l, dump_r, dump_l):
+def get_double_preds(model, points_r, points_l, dump_r, dump_l):
     # Make inference and add activation
     pred, _, _ = model(points_r, points_l)
     pred = pred.view(-1, 1)
@@ -59,31 +64,75 @@ def get_preds(model, points_r, points_l, dump_r, dump_l):
     if dump_r is not None:
         np.savetxt(fname=dump_r, X=pred_r)
     if dump_l is not None:
-        np.savetxt(fname=dump_r, X=pred_l)
+        np.savetxt(fname=dump_l, X=pred_l)
     return pred_r, pred_l
 
 
-def process_all(dataset, pts_name_r='receptor.pts', pts_name_l='ligand.pts',
-                device='cpu', overwrite=False, basename_dump='_prob.seg'):
-    classifier = get_classifier(device=device)
+def get_preds(model, points, dump):
+    # Make inference and add activation
+    pred = model(points)
+    pred = pred.view(-1, 1)
+    pred = torch.sigmoid(pred).view(1, -1).squeeze().data.cpu().numpy()
+    np.savetxt(fname=dump, X=pred)
+    return pred
+
+
+def process_all_double(dataset, pts_name_r='receptor.pts', pts_name_l='ligand.pts',
+                       device='cpu', overwrite=False, basename_dump='_prob_double.seg'):
+    classifier = get_classifier(device=device, double=True)
     for system in tqdm(os.listdir(dataset)):
         basename_r = pts_name_r[:-4]
         basename_l = pts_name_l[:-4]
         pts_r_file = os.path.join(dataset, system, pts_name_r)
         pts_l_file = os.path.join(dataset, system, pts_name_l)
+
         # Don't try to predict if we failed to dump a .pts file
         if not (os.path.exists(pts_r_file) and os.path.exists(pts_l_file)):
             continue
-        points_r = get_input(pts_file=pts_r_file, device=device)
-        points_l = get_input(pts_file=pts_l_file, device=device)
 
+        # Don't predict if prediction already exist
         dump_r = os.path.join(dataset, system, basename_r + basename_dump)
         dump_l = os.path.join(dataset, system, basename_l + basename_dump)
+        # print(dump_r)
         if not overwrite and os.path.exists(dump_l) and os.path.exists(dump_r):
             continue
 
-        get_preds(model=classifier, points_r=points_r, points_l=points_l,
-                  dump_r=dump_r, dump_l=dump_l)
+        points_r = get_input(pts_file=pts_r_file, device=device)
+        points_l = get_input(pts_file=pts_l_file, device=device)
+        get_double_preds(model=classifier, points_r=points_r, points_l=points_l, dump_r=dump_r, dump_l=dump_l)
+
+
+def process_one(dataset, system, pts_name, model, device, dump_name, overwrite=False):
+    pts_file = os.path.join(dataset, system, pts_name)
+    dump_file = os.path.join(dataset, system, dump_name)
+    if not os.path.exists(pts_file):
+        return
+    if not overwrite and os.path.exists(dump_file):
+        return
+    points = get_input(pts_file=pts_file, device=device)
+    get_preds(model=model, points=points, dump=dump_file)
+
+
+def process_all_dbd5(dataset, device='cpu', overwrite=False):
+    classifier = get_classifier(device=device, double=False)
+    for system in tqdm(os.listdir(dataset)):
+        process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
+                    pts_name='receptor_b.pts', dump_name='receptor_b_prob.seg')
+        process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
+                    pts_name='receptor_u.pts', dump_name='receptor_u_prob.seg')
+        process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
+                    pts_name='ligand_b.pts', dump_name='ligand_b_prob.seg')
+        process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
+                    pts_name='ligand_u.pts', dump_name='ligand_u_prob.seg')
+
+
+def process_all_epipred(dataset, device='cpu', overwrite=False):
+    classifier = get_classifier(device=device, double=False)
+    for system in tqdm(os.listdir(dataset)):
+        process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
+                    pts_name='receptor.pts', dump_name='receptor_prob.seg')
+        process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
+                    pts_name='ligand.pts', dump_name='ligand_prob.seg')
 
 
 if __name__ == '__main__':
@@ -93,22 +142,31 @@ if __name__ == '__main__':
     # dump_r = '../data/2I25/2I25_prob_l.seg'
     # dump_l = '../data/2I25/2I25_prob_r.seg'
 
-    # classifier = get_classifier(device=device)
-    # points_l = get_input(pts_file=pts_l_file, device=device)
     # points_r = get_input(pts_file=pts_r_file, device=device)
-    # pred_r, pred_l = get_preds(model=classifier, points_r=points_r, points_l=points_l,
-    #                            dump_r=dump_r, dump_l=dump_l)
+    # points_l = get_input(pts_file=pts_l_file, device=device)
+    # points_l = None
+    classifier = get_classifier(device=device)
+    # pred_r, pred_l = get_double_preds(model=classifier, points_r=points_r, points_l=points_l,
+    #                                   dump_r=dump_r, dump_l=dump_l)
+
+    # # For Epipred
+    # dataset = '../../dl_atomic_density_hd/data/epipred/'
+    # pts_name_r = 'receptor.pts'
+    # pts_name_l = 'ligand.pts'
+    # process_all(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device)
+    #
+    # # For dbd5
+    # dataset = '../../dl_atomic_density_hd/data/dbd5/'
+    # pts_name_r_b = 'receptor_b.pts'
+    # pts_name_r_u = 'receptor_u.pts'
+    # pts_name_l = 'ligand_b.pts'
+    # process_all_double(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l, device=device)
+    # process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l, device=device)
 
     # For Epipred
     dataset = '../../dl_atomic_density_hd/data/epipred/'
-    pts_name_r = 'receptor.pts'
-    pts_name_l = 'ligand.pts'
-    process_all(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device)
+    process_all_epipred(dataset=dataset, device=device, overwrite=True)
 
     # For dbd5
     dataset = '../../dl_atomic_density_hd/data/dbd5/'
-    pts_name_r_b = 'receptor_b.pdb'
-    pts_name_r_u = 'receptor_u.pdb'
-    pts_name_l = 'ligand.pdb'
-    process_all(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l, device=device)
-    process_all(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l, device=device)
+    process_all_dbd5(dataset=dataset, device=device, overwrite=True)
