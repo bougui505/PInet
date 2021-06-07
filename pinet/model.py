@@ -206,7 +206,10 @@ class PointNetDenseCls12(nn.Module):
         x1gf, x1pf, trans1, trans_feat1 = self.feat(x1)
 
         # global
+        # xf1 = x1gf
+        # print(xf1.shape)
         xf1 = torch.cat([x1gf, x1gf], 1)
+        # print(xf1.shape)
 
         # point feat concat with global
         xf1 = xf1.repeat(1, 1, x1pf.size()[2])

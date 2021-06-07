@@ -125,6 +125,7 @@ def get_resid_seg(pdbfile, ptsfile, segfile):
 if __name__ == '__main__':
     # INDIR = '/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/1A2K'
     # indirs = os.listdir('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5')
+    # indirs = glob.glob('/home/vmallet/projects/DeepInterface/data/dbd5/????')
     indirs = glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????')
     for indir in indirs:
         for infile in ['receptor_b', 'ligand_b']:

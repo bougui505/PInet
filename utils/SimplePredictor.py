@@ -145,28 +145,33 @@ if __name__ == '__main__':
     # points_r = get_input(pts_file=pts_r_file, device=device)
     # points_l = get_input(pts_file=pts_l_file, device=device)
     # points_l = None
-    classifier = get_classifier(device=device)
+    # classifier = get_classifier(device=device)
     # pred_r, pred_l = get_double_preds(model=classifier, points_r=points_r, points_l=points_l,
     #                                   dump_r=dump_r, dump_l=dump_l)
 
-    # # For Epipred
-    # dataset = '../../dl_atomic_density_hd/data/epipred/'
-    # pts_name_r = 'receptor.pts'
-    # pts_name_l = 'ligand.pts'
-    # process_all(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device)
-    #
-    # # For dbd5
-    # dataset = '../../dl_atomic_density_hd/data/dbd5/'
-    # pts_name_r_b = 'receptor_b.pts'
-    # pts_name_r_u = 'receptor_u.pts'
-    # pts_name_l = 'ligand_b.pts'
-    # process_all_double(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l, device=device)
-    # process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l, device=device)
+    # Do the double version
+    # For Epipred
+    dataset = '../../dl_atomic_density_hd/data/epipred/'
+    pts_name_r = 'receptor.pts'
+    pts_name_l = 'ligand.pts'
+    process_all_double(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device, overwrite=True)
 
+    # For dbd5
+    dataset = '../../dl_atomic_density_hd/data/dbd5/'
+    pts_name_r_b = 'receptor_b.pts'
+    pts_name_r_u = 'receptor_u.pts'
+    pts_name_l_b = 'ligand_b.pts'
+    pts_name_l_u = 'ligand_u.pts'
+    process_all_double(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l_b, device=device, overwrite=True)
+    process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_u, device=device, overwrite=True)
+    process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_b, device=device, overwrite=True)
+
+    # Do the more honest simple version
     # For Epipred
     dataset = '../../dl_atomic_density_hd/data/epipred/'
     process_all_epipred(dataset=dataset, device=device, overwrite=True)
 
     # For dbd5
+    # dataset = '../../DeepInterface/data/dbd5/'
     dataset = '../../dl_atomic_density_hd/data/dbd5/'
     process_all_dbd5(dataset=dataset, device=device, overwrite=True)
