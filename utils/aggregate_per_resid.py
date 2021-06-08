@@ -44,6 +44,7 @@ from getcontactEpipred import getsppider2
 from sklearn.neighbors import NearestNeighbors
 import os
 from Bio.PDB import *
+from tqdm import tqdm
 
 
 def readpdb(file):
@@ -52,11 +53,11 @@ def readpdb(file):
     structure = parser.get_structure('C', file)
     residic = []
     # tempo=[]
-    newdic =[]
-    labeldic= []
+    newdic = []
+    labeldic = []
     bdic = []
-    cd=[]
-    mark=0
+    cd = []
+    mark = 0
     resid_keys = []
     for c in structure[0]:
         for resi in c:
@@ -77,15 +78,15 @@ def readpdb(file):
 
                 # residic.append(resi._id[1])
                 residic.append(mark)
-                newdic.append([atom.get_coord()[0],atom.get_coord()[1],atom.get_coord()[2]])
+                newdic.append([atom.get_coord()[0], atom.get_coord()[1], atom.get_coord()[2]])
             cen = [coor * 1.0 / count for coor in cen]
-            mark+=1
+            mark += 1
             cd.append(cen)
             # labeldic.append(1)
 
     # print len(residic)
     # print len(bdic)
-    return residic, np.asarray(newdic),cd, resid_keys
+    return residic, np.asarray(newdic), cd, resid_keys
 
 
 def get_resid_seg(pdbfile, ptsfile, segfile):
@@ -94,7 +95,7 @@ def get_resid_seg(pdbfile, ptsfile, segfile):
     segfile: .seg file
     RL: r or l for receptor or ligand
     """
-    coord = np.transpose(np.loadtxt(ptsfile))[0:3,:]
+    coord = np.transpose(np.loadtxt(ptsfile))[0:3, :]
 
     pro = np.loadtxt(segfile)
 
@@ -112,55 +113,74 @@ def get_resid_seg(pdbfile, ptsfile, segfile):
     distances, indices = clfr.kneighbors(cencoord)
 
     prob = [0] * len(c)
-    for ii,ind in enumerate(indices):
-        for jj,sind in enumerate(ind):
-            if distances[ii][jj]>dt:
+    for ii, ind in enumerate(indices):
+        for jj, sind in enumerate(ind):
+            if distances[ii][jj] > dt:
                 continue
             prob[r[ii]] = max(prob[r[ii]], pro[sind])
     prob = np.asarray(prob)
     probs = dict(zip(resid_keys, prob))
     return probs
-    
 
-if __name__ == '__main__':
-    # INDIR = '/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/1A2K'
-    # indirs = os.listdir('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5')
-    # indirs = glob.glob('/home/vmallet/projects/DeepInterface/data/dbd5/????')
-    # DBD5
-    indirs = glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????')
-    for indir in indirs:
+
+def do_dbd5(indirs=glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????'), overwrite=False):
+    for indir in tqdm(indirs):
+        # Aggregate supervision
         for infile in ['receptor_b', 'ligand_b']:
             inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}.seg']
             if np.all([os.path.exists(e) for e in inputs]):
-                probs = get_resid_seg(*inputs)
-                pickle.dump(probs, open(f'{indir}/{infile}_patch.p', 'wb'))
+                outfile = f'{indir}/{infile}_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+        # Aggregate honest prediction
         for infile in ['receptor_b', 'ligand_b', 'receptor_u', 'ligand_u']:
             inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}_prob.seg']
             if np.all([os.path.exists(e) for e in inputs]):
-                probs = get_resid_seg(*inputs)
-                pickle.dump(probs, open(f'{indir}/{infile}_prob_patch.p', 'wb'))
+                outfile = f'{indir}/{infile}_prob_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+        # Aggregate native prediction
         for infile in ['receptor_b', 'ligand_b', 'receptor_u', 'ligand_u']:
             inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}_prob_double.seg']
             if np.all([os.path.exists(e) for e in inputs]):
-                probs = get_resid_seg(*inputs)
-                pickle.dump(probs, open(f'{indir}/{infile}_prob_double_patch.p', 'wb'))
+                outfile = f'{indir}/{infile}_prob_double_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
 
-    #Epipred
-    indirs = glob.glob('/c7/scratch2/vmallet/indeep_data/epipred/????')
-    for indir in indirs:
+
+def do_epipred(indirs=glob.glob('/c7/scratch2/vmallet/indeep_data/epipred/????'), overwrite=False):
+    for indir in tqdm(indirs):
+        # Aggregate supervision
         for infile in ['receptor', 'ligand']:
             inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}.seg']
             if np.all([os.path.exists(e) for e in inputs]):
-                probs = get_resid_seg(*inputs)
-                pickle.dump(probs, open(f'{indir}/{infile}_patch.p', 'wb'))
+                outfile = f'{indir}/{infile}_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+        # Aggregate honest prediction
         for infile in ['receptor', 'ligand']:
             inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}_prob.seg']
             if np.all([os.path.exists(e) for e in inputs]):
-                probs = get_resid_seg(*inputs)
-                pickle.dump(probs, open(f'{indir}/{infile}_prob_patch.p', 'wb'))
+                outfile = f'{indir}/{infile}_prob_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+        # Aggregate native prediction
         for infile in ['receptor', 'ligand']:
             inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}_prob_double.seg']
             if np.all([os.path.exists(e) for e in inputs]):
-                probs = get_resid_seg(*inputs)
-                pickle.dump(probs, open(f'{indir}/{infile}_prob_double_patch.p', 'wb'))
+                outfile = f'{indir}/{infile}_prob_double_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
 
+
+if __name__ == '__main__':
+    pass
+    # indirs = glob.glob('/home/vmallet/projects/DeepInterface/data/dbd5/????')
+    do_dbd5()
+    do_epipred()

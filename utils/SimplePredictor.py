@@ -41,12 +41,13 @@ def get_input(pts_file, device='cpu'):
     points[:, 0:5] = np.concatenate((coordset, featset), axis=1)
     points = torch.from_numpy(points).unsqueeze(0)
 
-    memlim = 120000
-    if points.size()[1] + points.size()[1] > memlim:
-        subset_size = points.size()[1] * memlim / (points.size()[1] + points.size()[1])
-        subset_size = int(subset_size)
-        subset = np.random.choice(points.size()[1], subset_size, replace=False)
-        points = points[:, subset, :]
+    # This precaution does not seem too important for inference...
+    # memlim = 120000
+    # if points.size()[1] + points.size()[1] > memlim:
+    #     subset_size = points.size()[1] * memlim / (points.size()[1] + points.size()[1])
+    #     subset_size = int(subset_size)
+    #     subset = np.random.choice(points.size()[1], subset_size, replace=False)
+    #     points = points[:, subset, :]
     points = points.transpose(2, 1)
     points = points.to(device)
     return points
@@ -162,6 +163,8 @@ if __name__ == '__main__':
     pts_name_r_u = 'receptor_u.pts'
     pts_name_l_b = 'ligand_b.pts'
     pts_name_l_u = 'ligand_u.pts'
+    # To get a 'double' version for the apo forms, we pair them with the bound version
+    # and then overwrite with the bound couple
     process_all_double(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l_b, device=device, overwrite=True)
     process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_u, device=device, overwrite=True)
     process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_b, device=device, overwrite=True)
