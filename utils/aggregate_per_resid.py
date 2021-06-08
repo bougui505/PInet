@@ -39,24 +39,28 @@
 
 import glob
 import pickle
+import sys
+
 import numpy as np
 from getcontactEpipred import getsppider2
 from sklearn.neighbors import NearestNeighbors
 import os
 from Bio.PDB import *
 from tqdm import tqdm
+from pymol import cmd
 
 
 def readpdb(file):
     parser = PDBParser()
     # structure = parser.get_structure('C', '3ogo-bg.pdb')
     structure = parser.get_structure('C', file)
-    residic = []
+
+    atoms_ids_perresidue = []
     # tempo=[]
-    newdic = []
+    atom_coords = []
     labeldic = []
     bdic = []
-    cd = []
+    all_residue_centroids = []
     mark = 0
     resid_keys = []
     for c in structure[0]:
@@ -64,29 +68,44 @@ def readpdb(file):
             _, _, chain, (_, resid, _) = resi.get_full_id()
             resid_keys.append((chain, resid))
             # residic.append(resi._id[1])
-            cen = [0, 0, 0]
+            residue_centroid = [0, 0, 0]
             count = 0
             for atom in resi:
                 # print atom.get_coord()
                 # print list(atom.get_vector())
                 # if 'H' in atom.get_name():
                 #     continue
-                cen[0] += atom.get_coord()[0]
-                cen[1] += atom.get_coord()[1]
-                cen[2] += atom.get_coord()[2]
+                residue_centroid[0] += atom.get_coord()[0]
+                residue_centroid[1] += atom.get_coord()[1]
+                residue_centroid[2] += atom.get_coord()[2]
                 count += 1
 
                 # residic.append(resi._id[1])
-                residic.append(mark)
-                newdic.append([atom.get_coord()[0], atom.get_coord()[1], atom.get_coord()[2]])
-            cen = [coor * 1.0 / count for coor in cen]
+                atoms_ids_perresidue.append(mark)
+                atom_coords.append([atom.get_coord()[0], atom.get_coord()[1], atom.get_coord()[2]])
+            residue_centroid = [coor * 1.0 / count for coor in residue_centroid]
             mark += 1
-            cd.append(cen)
+            all_residue_centroids.append(residue_centroid)
             # labeldic.append(1)
 
-    # print len(residic)
-    # print len(bdic)
-    return residic, np.asarray(newdic), cd, resid_keys
+    atoms_ids_perresidue = np.asarray(atoms_ids_perresidue)
+    atom_coords = np.asarray(atom_coords)
+    return atoms_ids_perresidue, atom_coords, all_residue_centroids, resid_keys
+
+
+def get_protein_coords_and_residues(pdbfilename):
+    cmd.reinitialize()
+    cmd.load(pdbfilename, 'inpdb')
+    pymolsel = 'inpdb and polymer.protein'
+    coords_in = cmd.get_coords(pymolsel)
+    pymolspace = {'resids_in': [], 'chains_in': []}
+    cmd.iterate(pymolsel,
+                'resids_in.append(resi); chains_in.append(chain)',
+                space=pymolspace)
+    # resids_in = np.int_(pymolspace['resids_in'])
+    resids_in = np.asarray(pymolspace['resids_in'])
+    chains_in = np.asarray(pymolspace['chains_in'])
+    return coords_in, resids_in, chains_in
 
 
 def get_resid_seg(pdbfile, ptsfile, segfile):
@@ -95,31 +114,57 @@ def get_resid_seg(pdbfile, ptsfile, segfile):
     segfile: .seg file
     RL: r or l for receptor or ligand
     """
-    coord = np.transpose(np.loadtxt(ptsfile))[0:3, :]
+    pts_coords = np.transpose(np.loadtxt(ptsfile))[0:3, :]
+    pts_coords = np.transpose(pts_coords)
 
     pro = np.loadtxt(segfile)
 
-    coord = np.transpose(coord)
-    nn = 3
+    n_neighbors = 3
     dt = 2
     cutoff = 0.5
     tol = [6, 6, 6]
 
-    r, n, c, resid_keys = readpdb(pdbfile)
+    # atoms_ids_perresidue, atom_coords, _, resid_keys = readpdb(pdbfile)
 
-    cencoord = np.asarray(n)
+    coords, resids, chains = get_protein_coords_and_residues(pdbfile)
+    atom_resid_keys = [(chain, resid) for chain, resid in zip(chains, resids)]
+    prev = atom_resid_keys[0]
+    resid_keys = [prev]
+    prev_id = 0
+    atom_ids = [0]
+    for elt in atom_resid_keys[1:]:
+        if elt == prev:
+            atom_ids.append(prev_id)
+        else:
+            prev = elt
+            prev_id += 1
+            atom_ids.append(prev_id)
+            resid_keys.append(elt)
+    # print(atom_ids - atoms_ids_perresidue)
+    # print((atom_coords - coords).sum())
+    # print(set(resid_keys)- set(resid_keys))
+    # print(set(resid_keys)- set(resid_keys))
 
-    clfr = NearestNeighbors(n_neighbors=nn, algorithm='ball_tree').fit(coord)
-    distances, indices = clfr.kneighbors(cencoord)
+    clfr = NearestNeighbors(n_neighbors=n_neighbors, algorithm='ball_tree').fit(pts_coords)
+    distances, indices = clfr.kneighbors(coords)
 
-    prob = [0] * len(c)
-    for ii, ind in enumerate(indices):
-        for jj, sind in enumerate(ind):
-            if distances[ii][jj] > dt:
-                continue
-            prob[r[ii]] = max(prob[r[ii]], pro[sind])
-    prob = np.asarray(prob)
-    probs = dict(zip(resid_keys, prob))
+    # indices is for each atom the 3 nearest neighbors in the pts. shape (n_atom, 3)
+    # Then extract relevant values, filtered by distance thresholding
+    # Finally, aggregate the atomic values per resid.
+    neigh_values = pro[indices]
+    filter_values = neigh_values * (distances < dt)
+    atom_values = filter_values.max(axis=1)
+    res_values = [atom_values[atom_ids == i].max() for i in np.unique(atom_ids)]
+
+    # prob = [0] * len(all_residue_centroids)
+    # for ii, ind in enumerate(indices):
+    #     for jj, sind in enumerate(ind):
+    #         if distances[ii][jj] > dt:
+    #             continue
+    #         prob[atoms_ids_perresidue[ii]] = max(prob[atoms_ids_perresidue[ii]], pro[sind])
+    # print(res_values-prob)
+    probs = dict(zip(resid_keys, res_values))
+    print(probs)
     return probs
 
 
@@ -181,6 +226,7 @@ def do_epipred(indirs=glob.glob('/c7/scratch2/vmallet/indeep_data/epipred/????')
 
 if __name__ == '__main__':
     pass
+    indirs = glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????')
     # indirs = glob.glob('/home/vmallet/projects/DeepInterface/data/dbd5/????')
-    do_dbd5()
-    do_epipred()
+    do_dbd5(indirs=indirs, overwrite=True)
+    do_epipred(overwrite=True)
