@@ -126,6 +126,7 @@ if __name__ == '__main__':
     # INDIR = '/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/1A2K'
     # indirs = os.listdir('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5')
     # indirs = glob.glob('/home/vmallet/projects/DeepInterface/data/dbd5/????')
+    # DBD5
     indirs = glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????')
     for indir in indirs:
         for infile in ['receptor_b', 'ligand_b']:
@@ -138,3 +139,28 @@ if __name__ == '__main__':
             if np.all([os.path.exists(e) for e in inputs]):
                 probs = get_resid_seg(*inputs)
                 pickle.dump(probs, open(f'{indir}/{infile}_prob_patch.p', 'wb'))
+        for infile in ['receptor_b', 'ligand_b', 'receptor_u', 'ligand_u']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}_prob_double.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                probs = get_resid_seg(*inputs)
+                pickle.dump(probs, open(f'{indir}/{infile}_prob_double_patch.p', 'wb'))
+
+    #Epipred
+    indirs = glob.glob('/c7/scratch2/vmallet/indeep_data/epipred/????')
+    for indir in indirs:
+        for infile in ['receptor', 'ligand']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                probs = get_resid_seg(*inputs)
+                pickle.dump(probs, open(f'{indir}/{infile}_patch.p', 'wb'))
+        for infile in ['receptor', 'ligand']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}_prob.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                probs = get_resid_seg(*inputs)
+                pickle.dump(probs, open(f'{indir}/{infile}_prob_patch.p', 'wb'))
+        for infile in ['receptor', 'ligand']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}_prob_double.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                probs = get_resid_seg(*inputs)
+                pickle.dump(probs, open(f'{indir}/{infile}_prob_double_patch.p', 'wb'))
+
