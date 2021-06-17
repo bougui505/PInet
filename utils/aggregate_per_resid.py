@@ -118,8 +118,8 @@ def get_resid_seg(pdbfile, ptsfile, segfile):
     pts_coords = np.transpose(pts_coords)
 
     pro = np.loadtxt(segfile)
-    if np.min(pro)==1:
-        pro = pro-1
+    if np.min(pro) == 1:
+        pro = pro - 1
     print(pro)
 
     n_neighbors = 3
@@ -199,7 +199,7 @@ def do_dbd5(indirs=glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????'),
                 if overwrite or not os.path.exists(outfile):
                     probs = get_resid_seg(*inputs)
                     pickle.dump(probs, open(outfile, 'wb'))
-                    
+
         ########################## DROPBOX ##########################
         # Aggregate supervision with dropbox
         for infile in ['receptor_b', 'ligand_b']:
@@ -219,7 +219,8 @@ def do_dbd5(indirs=glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????'),
                     pickle.dump(probs, open(outfile, 'wb'))
         # Aggregate native prediction with dropbox
         for infile in ['receptor_b', 'ligand_b']:
-            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts', f'{indir}/{infile}_prob_double_dropbox.seg']
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts',
+                      f'{indir}/{infile}_prob_double_dropbox.seg']
             if np.all([os.path.exists(e) for e in inputs]):
                 outfile = f'{indir}/{infile}_dropbox_prob_double_patch.p'
                 if overwrite or not os.path.exists(outfile):

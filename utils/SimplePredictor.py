@@ -118,13 +118,13 @@ def process_all_dbd5(dataset, device='cpu', overwrite=False, basename_dump='prob
     classifier = get_classifier(device=device, double=False)
     for system in tqdm(os.listdir(dataset)):
         process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
-                    pts_name='receptor_b.pts', dump_name=f'receptor_b_{basename_dump}')
+                    pts_name='receptor_b_dropbox.pts', dump_name=f'receptor_b_{basename_dump}')
         process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
-                    pts_name='receptor_u.pts', dump_name=f'receptor_u_{basename_dump}')
+                    pts_name='receptor_u_dropbox.pts', dump_name=f'receptor_u_{basename_dump}')
         process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
-                    pts_name='ligand_b.pts', dump_name=f'ligand_b_{basename_dump}')
+                    pts_name='ligand_b_dropbox.pts', dump_name=f'ligand_b_{basename_dump}')
         process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
-                    pts_name='ligand_u.pts', dump_name=f'ligand_u_{basename_dump}')
+                    pts_name='ligand_u_dropbox.pts', dump_name=f'ligand_u_{basename_dump}')
 
 
 def process_all_epipred(dataset, device='cpu', overwrite=False, basename_dump='prob.seg'):
@@ -159,10 +159,10 @@ if __name__ == '__main__':
 
     # For dbd5
     dataset = '../../dl_atomic_density_hd/data/dbd5/'
-    pts_name_r_b = 'receptor_b.pts'
-    pts_name_r_u = 'receptor_u.pts'
-    pts_name_l_b = 'ligand_b.pts'
-    pts_name_l_u = 'ligand_u.pts'
+    pts_name_r_b = 'receptor_b_dropbox.pts'
+    pts_name_r_u = 'receptor_u_dropbox.pts'
+    pts_name_l_b = 'ligand_b_dropbox.pts'
+    pts_name_l_u = 'ligand_u_dropbox.pts'
     # To get a 'double' version for the apo forms, we pair them with the bound version
     # and then overwrite with the bound couple
     process_all_double(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l_b,
