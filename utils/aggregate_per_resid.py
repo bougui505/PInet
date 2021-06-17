@@ -118,6 +118,9 @@ def get_resid_seg(pdbfile, ptsfile, segfile):
     pts_coords = np.transpose(pts_coords)
 
     pro = np.loadtxt(segfile)
+    if np.min(pro)==1:
+        pro = pro-1
+    print(pro)
 
     n_neighbors = 3
     dt = 2
@@ -128,6 +131,9 @@ def get_resid_seg(pdbfile, ptsfile, segfile):
 
     coords, resids, chains = get_protein_coords_and_residues(pdbfile)
     atom_resid_keys = [(chain, resid) for chain, resid in zip(chains, resids)]
+    # print(len(set(atom_resid_keys)))
+    # print(atom_resid_keys)
+
     prev = atom_resid_keys[0]
     resid_keys = [prev]
     prev_id = 0
@@ -164,7 +170,6 @@ def get_resid_seg(pdbfile, ptsfile, segfile):
     #         prob[atoms_ids_perresidue[ii]] = max(prob[atoms_ids_perresidue[ii]], pro[sind])
     # print(res_values-prob)
     probs = dict(zip(resid_keys, res_values))
-    print(probs)
     return probs
 
 
@@ -191,6 +196,32 @@ def do_dbd5(indirs=glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????'),
             inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}.pts', f'{indir}/{infile}_prob_double.seg']
             if np.all([os.path.exists(e) for e in inputs]):
                 outfile = f'{indir}/{infile}_prob_double_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+                    
+        ########################## DROPBOX ##########################
+        # Aggregate supervision with dropbox
+        for infile in ['receptor_b', 'ligand_b']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts', f'{indir}/{infile}_dropbox.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                outfile = f'{indir}/{infile}_dropbox_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+        # Aggregate honest prediction with dropbox
+        for infile in ['receptor_b', 'ligand_b']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts', f'{indir}/{infile}_prob_dropbox.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                outfile = f'{indir}/{infile}_dropbox_prob_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+        # Aggregate native prediction with dropbox
+        for infile in ['receptor_b', 'ligand_b']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts', f'{indir}/{infile}_prob_double_dropbox.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                outfile = f'{indir}/{infile}_dropbox_prob_double_patch.p'
                 if overwrite or not os.path.exists(outfile):
                     probs = get_resid_seg(*inputs)
                     pickle.dump(probs, open(outfile, 'wb'))
@@ -226,7 +257,27 @@ def do_epipred(indirs=glob.glob('/c7/scratch2/vmallet/indeep_data/epipred/????')
 
 if __name__ == '__main__':
     pass
+    # pdb = "../../DeepInterface/benchmark/misc/1A2K/receptor_b.pdb"
+    # pts = "../../DeepInterface/benchmark/misc/1A2K/receptor_b.pts"
+    # seg = "../../DeepInterface/benchmark/misc/1A2K/receptor_b.seg"
+    # probs = get_resid_seg(pdb, ptsfile=pts, segfile=seg)
+    # print(len(probs))
+    # print(set(probs.values()))
+    # pickle.dump(probs, open('mine.p', 'wb'))
+    #
+    # pts = "../../DeepInterface/benchmark/misc/1A2K/dropbox_1A2K-r.pts"
+    # seg = "../../DeepInterface/benchmark/misc/1A2K/dropbox_1A2K-r.seg"
+    # probs_b = get_resid_seg(pdb, ptsfile=pts, segfile=seg)
+    # print(set(probs_b.values()))
+    # print(len(probs_b))
+    # pickle.dump(probs_b, open('theirs.p', 'wb'))
+    #
+    # for key, value in probs.items():
+    #     if(value != probs_b[key]):
+    #         print(value, probs_b[key])
+    # print(probs==probs_b)
+
     indirs = glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????')
     # indirs = glob.glob('/home/vmallet/projects/DeepInterface/data/dbd5/????')
     do_dbd5(indirs=indirs, overwrite=True)
-    do_epipred(overwrite=True)
+    # do_epipred(overwrite=True)

@@ -114,26 +114,26 @@ def process_one(dataset, system, pts_name, model, device, dump_name, overwrite=F
     get_preds(model=model, points=points, dump=dump_file)
 
 
-def process_all_dbd5(dataset, device='cpu', overwrite=False):
+def process_all_dbd5(dataset, device='cpu', overwrite=False, basename_dump='prob.seg'):
     classifier = get_classifier(device=device, double=False)
     for system in tqdm(os.listdir(dataset)):
         process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
-                    pts_name='receptor_b.pts', dump_name='receptor_b_prob.seg')
+                    pts_name='receptor_b.pts', dump_name=f'receptor_b_{basename_dump}')
         process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
-                    pts_name='receptor_u.pts', dump_name='receptor_u_prob.seg')
+                    pts_name='receptor_u.pts', dump_name=f'receptor_u_{basename_dump}')
         process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
-                    pts_name='ligand_b.pts', dump_name='ligand_b_prob.seg')
+                    pts_name='ligand_b.pts', dump_name=f'ligand_b_{basename_dump}')
         process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
-                    pts_name='ligand_u.pts', dump_name='ligand_u_prob.seg')
+                    pts_name='ligand_u.pts', dump_name=f'ligand_u_{basename_dump}')
 
 
-def process_all_epipred(dataset, device='cpu', overwrite=False):
+def process_all_epipred(dataset, device='cpu', overwrite=False, basename_dump='prob.seg'):
     classifier = get_classifier(device=device, double=False)
     for system in tqdm(os.listdir(dataset)):
         process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
-                    pts_name='receptor.pts', dump_name='receptor_prob.seg')
+                    pts_name='receptor.pts', dump_name=f'receptor_{basename_dump}')
         process_one(dataset=dataset, model=classifier, device=device, system=system, overwrite=overwrite,
-                    pts_name='ligand.pts', dump_name='ligand_prob.seg')
+                    pts_name='ligand.pts', dump_name=f'ligand_{basename_dump}')
 
 
 if __name__ == '__main__':
@@ -152,10 +152,10 @@ if __name__ == '__main__':
 
     # Do the double version
     # For Epipred
-    dataset = '../../dl_atomic_density_hd/data/epipred/'
-    pts_name_r = 'receptor.pts'
-    pts_name_l = 'ligand.pts'
-    process_all_double(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device, overwrite=True)
+    # dataset = '../../dl_atomic_density_hd/data/epipred/'
+    # pts_name_r = 'receptor.pts'
+    # pts_name_l = 'ligand.pts'
+    # process_all_double(dataset=dataset, pts_name_r=pts_name_r, pts_name_l=pts_name_l, device=device, overwrite=True)
 
     # For dbd5
     dataset = '../../dl_atomic_density_hd/data/dbd5/'
@@ -165,16 +165,19 @@ if __name__ == '__main__':
     pts_name_l_u = 'ligand_u.pts'
     # To get a 'double' version for the apo forms, we pair them with the bound version
     # and then overwrite with the bound couple
-    process_all_double(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l_b, device=device, overwrite=True)
-    process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_u, device=device, overwrite=True)
-    process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_b, device=device, overwrite=True)
+    process_all_double(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l_b,
+                       device=device, overwrite=True, basename_dump='_prob_double_dropbox.seg')
+    process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_u,
+                       device=device, overwrite=True, basename_dump='_prob_double_dropbox.seg')
+    process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_b,
+                       device=device, overwrite=True, basename_dump='_prob_double_dropbox.seg')
 
     # Do the more honest simple version
     # For Epipred
-    dataset = '../../dl_atomic_density_hd/data/epipred/'
-    process_all_epipred(dataset=dataset, device=device, overwrite=True)
+    # dataset = '../../dl_atomic_density_hd/data/epipred/'
+    # process_all_epipred(dataset=dataset, device=device, overwrite=True)
 
     # For dbd5
     # dataset = '../../DeepInterface/data/dbd5/'
     dataset = '../../dl_atomic_density_hd/data/dbd5/'
-    process_all_dbd5(dataset=dataset, device=device, overwrite=True)
+    process_all_dbd5(dataset=dataset, device=device, overwrite=True, basename_dump='_prob_dropbox.seg')
