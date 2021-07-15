@@ -213,7 +213,7 @@ def do_dbd5(indirs=glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????'),
         for infile in ['receptor_b', 'ligand_b']:
             inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts', f'{indir}/{infile}_prob_dropbox.seg']
             if np.all([os.path.exists(e) for e in inputs]):
-                outfile = f'{indir}/{infile}_dropbox_prob_patch.p'
+                outfile = f'{indir}/{infile}_prob_dropbox_patch.p'
                 if overwrite or not os.path.exists(outfile):
                     probs = get_resid_seg(*inputs)
                     pickle.dump(probs, open(outfile, 'wb'))
@@ -222,7 +222,26 @@ def do_dbd5(indirs=glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????'),
             inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts',
                       f'{indir}/{infile}_prob_double_dropbox.seg']
             if np.all([os.path.exists(e) for e in inputs]):
-                outfile = f'{indir}/{infile}_dropbox_prob_double_patch.p'
+                outfile = f'{indir}/{infile}_prob_dropbox_double_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+
+        ########################## Final  ##########################
+        # Aggregate honest prediction with final
+        for infile in ['receptor_b', 'ligand_b']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts', f'{indir}/{infile}_prob_final.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                outfile = f'{indir}/{infile}_prob_final_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+        # Aggregate native prediction with final
+        for infile in ['receptor_b', 'ligand_b']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts',
+                      f'{indir}/{infile}_prob_double_final.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                outfile = f'{indir}/{infile}_prob_final_double_patch.p'
                 if overwrite or not os.path.exists(outfile):
                     probs = get_resid_seg(*inputs)
                     pickle.dump(probs, open(outfile, 'wb'))
@@ -255,6 +274,52 @@ def do_epipred(indirs=glob.glob('/c7/scratch2/vmallet/indeep_data/epipred/????')
                     probs = get_resid_seg(*inputs)
                     pickle.dump(probs, open(outfile, 'wb'))
 
+        ########################## DROPBOX ##########################
+        # Aggregate supervision with dropbox
+        for infile in ['receptor', 'ligand']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts', f'{indir}/{infile}_dropbox.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                outfile = f'{indir}/{infile}_dropbox_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+        # Aggregate honest prediction with dropbox
+        for infile in ['receptor', 'ligand']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts', f'{indir}/{infile}_prob_dropbox.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                outfile = f'{indir}/{infile}_prob_dropbox_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+        # Aggregate native prediction with dropbox
+        for infile in ['receptor', 'ligand']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts',
+                      f'{indir}/{infile}_prob_double_dropbox.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                outfile = f'{indir}/{infile}_dropbox_prob_double_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+
+        ########################## Final ##########################
+        # Aggregate honest prediction with final
+        for infile in ['receptor', 'ligand']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts', f'{indir}/{infile}_prob_final.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                outfile = f'{indir}/{infile}_prob_final_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+        # Aggregate native prediction with final
+        for infile in ['receptor', 'ligand']:
+            inputs = [f'{indir}/{infile}.pdb', f'{indir}/{infile}_dropbox.pts',
+                      f'{indir}/{infile}_prob_double_final.seg']
+            if np.all([os.path.exists(e) for e in inputs]):
+                outfile = f'{indir}/{infile}_final_prob_double_patch.p'
+                if overwrite or not os.path.exists(outfile):
+                    probs = get_resid_seg(*inputs)
+                    pickle.dump(probs, open(outfile, 'wb'))
+
 
 if __name__ == '__main__':
     pass
@@ -280,5 +345,5 @@ if __name__ == '__main__':
 
     indirs = glob.glob('/c7/scratch2/bougui/dbd5/benchmark5.5/dbd5/????')
     # indirs = glob.glob('/home/vmallet/projects/DeepInterface/data/dbd5/????')
-    do_dbd5(indirs=indirs, overwrite=True)
-    # do_epipred(overwrite=True)
+    do_dbd5(indirs=indirs, overwrite=False)
+    do_epipred(overwrite=False)
