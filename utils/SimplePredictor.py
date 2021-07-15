@@ -20,7 +20,7 @@ random.seed(random.randint(1, 10000))
 torch.manual_seed(random.randint(1, 10000))
 
 
-def get_classifier(weights_path='../models/dbd_aug.pth', device='cpu', double=False):
+def get_classifier(weights_path='../models/split_0.pth', device='cpu', double=False):
     num_classes = 2
     if double:
         classifier = PointNetDenseCls12Double(k=num_classes, feature_transform=False, pdrop=0.0, id=5)
@@ -165,19 +165,19 @@ if __name__ == '__main__':
     pts_name_l_u = 'ligand_u_dropbox.pts'
     # To get a 'double' version for the apo forms, we pair them with the bound version
     # and then overwrite with the bound couple
-    process_all_double(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l_b,
-                       device=device, overwrite=True, basename_dump='_prob_double_dropbox.seg')
-    process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_u,
-                       device=device, overwrite=True, basename_dump='_prob_double_dropbox.seg')
+    # process_all_double(dataset=dataset, pts_name_r=pts_name_r_u, pts_name_l=pts_name_l_b,
+    #                    device=device, overwrite=True, basename_dump='_prob_double_final.seg')
+    # process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_u,
+    #                    device=device, overwrite=True, basename_dump='_prob_double_final.seg')
     process_all_double(dataset=dataset, pts_name_r=pts_name_r_b, pts_name_l=pts_name_l_b,
-                       device=device, overwrite=True, basename_dump='_prob_double_dropbox.seg')
+                       device=device, overwrite=True, basename_dump='_prob_double_final.seg')
 
     # Do the more honest simple version
     # For Epipred
-    # dataset = '../../dl_atomic_density_hd/data/epipred/'
-    # process_all_epipred(dataset=dataset, device=device, overwrite=True)
+    dataset = '../../dl_atomic_density_hd/data/epipred/'
+    process_all_epipred(dataset=dataset, device=device, overwrite=True, basename_dump='prob_final.seg')
 
     # For dbd5
     # dataset = '../../DeepInterface/data/dbd5/'
     dataset = '../../dl_atomic_density_hd/data/dbd5/'
-    process_all_dbd5(dataset=dataset, device=device, overwrite=True, basename_dump='_prob_dropbox.seg')
+    process_all_dbd5(dataset=dataset, device=device, overwrite=True, basename_dump='prob_final.seg')
